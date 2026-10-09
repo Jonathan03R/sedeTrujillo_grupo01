@@ -29,3 +29,11 @@ cross join (values
 join emociones e on e.nombre = v.emocion
 where u.alias = 'Yoana'
   and not exists (select 1 from registros_emocionales r where r.usuario_id = u.usuario_id);
+
+-- Gustos de Yoana (FICTICIOS). Se ven y editan en el Perfil; la IA los usa para personalizar el autocuidado.
+insert into gustos (usuario_id, texto)
+select u.usuario_id, g.texto
+from usuarios u
+cross join (values ('Básquet'), ('Deportes'), ('Música'), ('Dibujar')) as g(texto)
+where u.alias = 'Yoana'
+  and not exists (select 1 from gustos x where x.usuario_id = u.usuario_id and lower(x.texto) = lower(g.texto) and x.activo);

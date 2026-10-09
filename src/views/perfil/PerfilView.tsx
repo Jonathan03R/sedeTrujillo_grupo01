@@ -1,14 +1,18 @@
 import { AvisoApoyo } from "@/components/ui/AvisoApoyo";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { TituloPantalla } from "@/components/ui/TituloPantalla";
+import { agregarGusto, quitarGusto } from "@/controllers/gustos.action";
+import type { Gusto } from "@/models/gusto.model";
 import type { Usuario } from "@/models/usuario.model";
+import { MisGustos } from "./MisGustos";
 
 interface PerfilViewProps {
   usuario: Usuario;
   iniciales: string;
+  gustos: readonly Gusto[];
 }
 
-export function PerfilView({ usuario, iniciales }: PerfilViewProps) {
+export function PerfilView({ usuario, iniciales, gustos }: PerfilViewProps) {
   return (
     <div className="space-y-5">
       <TituloPantalla titulo="Mi perfil" />
@@ -25,6 +29,8 @@ export function PerfilView({ usuario, iniciales }: PerfilViewProps) {
           {usuario.edad !== null && <p className="text-sm text-slate-500">{usuario.edad} años</p>}
         </div>
       </Tarjeta>
+
+      <MisGustos gustos={gustos} onAgregar={agregarGusto} onQuitar={quitarGusto} />
 
       <Tarjeta aria-labelledby="titulo-datos">
         <h2 id="titulo-datos" className="mb-3 text-sm font-semibold text-slate-900">

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { AlternativasAutocuidado } from "@/components/ejercicios/AlternativasAutocuidado";
 import { RecomendacionApoyo } from "@/components/ejercicios/RecomendacionApoyo";
 import { TarjetaEjercicio } from "@/components/ejercicios/TarjetaEjercicio";
 import { AlertaEmocional } from "@/components/emociones/AlertaEmocional";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
 import { Tarjeta } from "@/components/ui/Tarjeta";
+import type { AlternativaAutocuidado } from "@/models/autocuidado.model";
 import type { AlertaEmocional as DatosAlerta, Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import { EjercicioRecomendado } from "./EjercicioRecomendado";
 import { PasosEjercicio } from "./PasosEjercicio";
@@ -14,9 +16,10 @@ interface EjerciciosViewProps {
   apoyo: MensajeApoyo | null;
   recomendado: Ejercicio;
   otros: readonly Ejercicio[];
+  alternativas: readonly AlternativaAutocuidado[];
 }
 
-export function EjerciciosView({ alerta, apoyo, recomendado, otros }: EjerciciosViewProps) {
+export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas }: EjerciciosViewProps) {
   return (
     <div className="space-y-5">
       <EncabezadoPantalla titulo="Mi momento de calma" volverA="/inicio" />
@@ -41,6 +44,8 @@ export function EjerciciosView({ alerta, apoyo, recomendado, otros }: Ejercicios
       ) : (
         recomendado.pasos && <PasosEjercicio pasos={recomendado.pasos} />
       )}
+
+      <AlternativasAutocuidado alternativas={alternativas} />
 
       <section aria-labelledby="mas-ejercicios">
         <h2 id="mas-ejercicios" className="mb-3 text-sm font-semibold text-slate-900">

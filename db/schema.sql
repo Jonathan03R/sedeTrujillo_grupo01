@@ -103,12 +103,26 @@ create table registros_emocionales (
   activo                 boolean not null default true
 );
 
--- Canvas · Paso 5: recomendaciones de autocuidado generadas por IA (pantalla 2 del MVP)
+-- Lo que le gusta a la persona (se ve y edita en el Perfil). La IA lo usa para personalizar el autocuidado.
+create table gustos (
+  gusto_id    bigint generated always as identity primary key,
+  usuario_id  bigint not null references usuarios (usuario_id),
+  texto       text not null check (char_length(texto) between 2 and 40),
+  creado_en   timestamptz not null default now(),
+  activo      boolean not null default true
+);
+
+-- Canvas · Paso 5: recomendaciones de autocuidado generadas por IA (pantalla 2 del MVP).
+-- La IA las arma en tiempo real al registrar la emoción, con la emoción, su intensidad (1-10) y los gustos.
+-- recomendacion: mensaje personalizado · ejercicio: id del ejercicio del catálogo de la app
+-- alternativas: ideas de autocuidado [{titulo, descripcion, icono}] · modelo: modelo de IA que las generó
 create table recomendaciones_autocuidado (
   recomendacion_autocuidado_id  bigint generated always as identity primary key,
   registro_emocional_id         bigint not null references registros_emocionales (registro_emocional_id),
   recomendacion                 text not null,
   ejercicio                     text,
+  alternativas                  jsonb not null default '[]'::jsonb,
+  modelo                        text,
   completado                    boolean not null default false,
   creado_en                     timestamptz not null default now(),
   activo                        boolean not null default true
@@ -202,6 +216,8 @@ create index on respuestas (aplicacion_id);
 create index on registros_emocionales (usuario_id, registrado_en);
 create index on registros_emocionales (emocion_id);
 create index on recomendaciones_autocuidado (registro_emocional_id);
+create index on gustos (usuario_id);
+create unique index on gustos (usuario_id, lower(texto)) where activo;
 
 -- Análisis: valor emocional promedio de las respuestas por app, junto con el tiempo de uso total.
 -- Solo cuenta filas activas.
@@ -302,5 +318,6 @@ alter table analisis_uso_telefono       enable row level security;
 alter table anomalias_uso_telefono      enable row level security;
 alter table preguntas_alerta            enable row level security;
 alter table notificaciones              enable row level security;
+alter table gustos                      enable row level security;
 
 commit;

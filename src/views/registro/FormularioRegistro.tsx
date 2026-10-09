@@ -53,7 +53,7 @@ export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[
         disabled={!emocion || pendiente}
         className="relative shadow-lg shadow-blue-500/30"
       >
-        {pendiente ? "Registrando…" : "Registrar"}
+        {pendiente ? "Preparando tu momento de calma…" : "Registrar"}
         {!pendiente && <ArrowRight className="absolute right-6 size-6" aria-hidden="true" />}
       </Boton>
     </div>

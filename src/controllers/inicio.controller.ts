@@ -3,10 +3,10 @@ import { obtenerAlertaPendiente } from "./alerta.controller";
 import { obtenerRecomendacionActual } from "./recomendacion.controller";
 
 export async function obtenerPantallaInicio() {
-  const [usuario, { alerta, apoyo, recomendado }, alertaRoja] = await Promise.all([
+  const [usuario, { estado, apoyo, recomendado, mensaje, alternativas }, alertaRoja] = await Promise.all([
     obtenerUsuarioActual(),
     obtenerRecomendacionActual(),
     obtenerAlertaPendiente(),
   ]);
-  return { nombre: usuario.alias, alerta, apoyo, recomendado, alertaRoja };
+  return { nombre: usuario.alias, estado, apoyo, recomendado, mensaje, alternativas, alertaRoja };
 }

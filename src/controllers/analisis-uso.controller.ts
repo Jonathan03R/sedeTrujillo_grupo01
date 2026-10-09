@@ -19,6 +19,7 @@ import {
 } from "@/models/uso-telefono.model";
 import { diaLocal, fechaHoraCompacta, fechaLocal, inicioDiaLocal } from "@/lib/fechas";
 import { MODELO_IA, obtenerClienteIA } from "@/lib/ia/cliente";
+import { contieneLenguajeClinico, textoValido } from "@/lib/ia/lenguaje";
 import { guardarAnalisis, obtenerUltimoAnalisis } from "@/repositories/analisis-uso-telefono.repository";
 import { crearNotificacion } from "@/repositories/notificacion.repository";
 import { listarPreguntasAlerta } from "@/repositories/pregunta-alerta.repository";
@@ -98,9 +99,6 @@ function esquemaRespuesta(preguntas: readonly PreguntaAlerta[]) {
   } as const;
 }
 
-// Red de seguridad para la regla de oro 2: si la IA nombra un trastorno, no se guarda.
-const LENGUAJE_CLINICO = /trastorno|depresi[oó]n|adicci[oó]n|insomnio|ludopat|tdah/i;
-
 const MAXIMO_TEXTO = 600;
 const MAXIMO_SUGERENCIAS = 5;
 const PESO_SEVERIDAD = { leve: 1, moderada: 2, alta: 3 } as const;
@@ -110,7 +108,7 @@ function lineaSesion(sesion: SesionTelefono): string {
 }
 
 function texto(valor: unknown): string | null {
-  return typeof valor === "string" && valor.trim().length > 0 && valor.length <= MAXIMO_TEXTO ? valor.trim() : null;
+  return textoValido(valor, MAXIMO_TEXTO);
 }
 
 interface AnalisisValidado extends Omit<NuevoAnalisisUsoTelefono, "desde" | "hasta" | "modelo"> {
@@ -165,7 +163,7 @@ function validarRespuesta(
   if (alertaRoja && !mensaje) return null;
 
   const textos = [resumen, ...sugerencias, ...anomalias.map((a) => a.descripcion), ...(mensaje ? [mensaje] : [])];
-  if (textos.some((t) => LENGUAJE_CLINICO.test(t))) return null;
+  if (contieneLenguajeClinico(textos)) return null;
 
   const preguntaAlertaId = alertaRoja ? elegirPregunta(r.pregunta_alerta_id, anomalias, preguntas) : null;
 

@@ -1,9 +1,12 @@
+import { ALTERNATIVAS_BASE, type RecomendacionPersonalizada } from "@/models/autocuidado.model";
 import { INTENSIDAD_ALTA, buscarEmocion, type EmocionId } from "@/models/emocion.model";
 import type { AlertaEmocional, MensajeApoyo } from "@/models/ejercicio.model";
+import type { EstadoActual } from "@/models/progreso.model";
 import { buscarEjercicioParaEmocion, listarEjercicios } from "@/repositories/ejercicio.repository";
+import { obtenerRecomendacionDelRegistro } from "@/repositories/recomendacion-autocuidado.repository";
 import { listarRegistros } from "@/repositories/registro-emocional.repository";
 
-// Mensajes de apoyo por emoción. Más adelante: recomendación personalizada con IA generativa.
+// Mensajes de apoyo por emoción: la recomendación fija que se usa si la IA no pudo personalizar (ver autocuidado.controller.ts).
 // Lenguaje de acompañamiento: nunca nombra trastornos ni diagnostica.
 const APOYO_POR_EMOCION: Record<EmocionId, Pick<MensajeApoyo, "titulo" | "detalle">> = {
   estres: {
@@ -32,7 +35,11 @@ const APOYO_POR_EMOCION: Record<EmocionId, Pick<MensajeApoyo, "titulo" | "detall
   },
 };
 
-/** Recomendación según el último registro emocional. La usan Inicio y Ejercicios. */
+/**
+ * Recomendación según el último registro emocional. La usan Inicio y Ejercicios.
+ * Si la IA personalizó el autocuidado para ese registro (emoción + intensidad + gustos), usa eso;
+ * si no, la recomendación fija por emoción.
+ */
 export async function obtenerRecomendacionActual() {
   const [ejercicios, registros] = await Promise.all([listarEjercicios(), listarRegistros()]);
 
@@ -40,7 +47,9 @@ export async function obtenerRecomendacionActual() {
 
   let alerta: AlertaEmocional | null = null;
   let apoyo: MensajeApoyo | null = null;
+  let estado: EstadoActual | null = null;
   let recomendado = ejercicios[0];
+  let personalizada: RecomendacionPersonalizada | null = null;
 
   if (ultimo) {
     const emocion = buscarEmocion(ultimo.emocion);
@@ -55,14 +64,28 @@ export async function obtenerRecomendacionActual() {
         ? "Es normal sentirse así. Aquí tienes una recomendación para ayudarte."
         : "Gracias por registrar cómo te sientes. Aquí tienes una sugerencia.",
     };
+    estado = { emocion, intensidad: ultimo.intensidad };
     apoyo = { ...APOYO_POR_EMOCION[ultimo.emocion], derivar: malestar && ultimo.intensidad >= INTENSIDAD_ALTA };
-    recomendado = await buscarEjercicioParaEmocion(ultimo.emocion);
+
+    const delRegistro = await obtenerRecomendacionDelRegistro(ultimo.id);
+    const elegido = delRegistro && ejercicios.find((e) => e.id === delRegistro.ejercicioId);
+    if (delRegistro && elegido) {
+      personalizada = delRegistro;
+      recomendado = elegido;
+      apoyo = { ...apoyo, detalle: delRegistro.mensaje };
+    } else {
+      recomendado = await buscarEjercicioParaEmocion(ultimo.emocion);
+    }
   }
 
   return {
     alerta,
+    estado,
     apoyo,
     recomendado,
+    /** El mensaje de la IA para esta persona; null si no hubo personalización. */
+    mensaje: personalizada?.mensaje ?? null,
+    alternativas: personalizada && personalizada.alternativas.length > 0 ? personalizada.alternativas : ALTERNATIVAS_BASE,
     otros: ejercicios.filter((ejercicio) => ejercicio.id !== recomendado.id),
   };
 }
