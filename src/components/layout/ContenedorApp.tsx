@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 import { BarraNavegacion } from "./BarraNavegacion";
 
-export function ContenedorApp({ children }: { children: ReactNode }) {
+interface ContenedorAppProps {
+  children: ReactNode;
+  /** false en la pantalla de registro, que se ve sin menú. */
+  conNavegacion?: boolean;
+}
+
+export function ContenedorApp({ children, conNavegacion = true }: ContenedorAppProps) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-      <main className="flex-1 px-4 pt-6 pb-28">{children}</main>
-      <BarraNavegacion />
+      <main className={`flex-1 px-4 pt-6 ${conNavegacion ? "pb-28" : "pb-10"}`}>{children}</main>
+      {conNavegacion && <BarraNavegacion />}
     </div>
   );
 }

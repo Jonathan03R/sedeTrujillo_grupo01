@@ -21,10 +21,8 @@ export function PerfilView({ usuario, iniciales }: PerfilViewProps) {
           {iniciales}
         </div>
         <div>
-          <p className="font-semibold text-slate-900">
-            {usuario.nombre} {usuario.apellidos}
-          </p>
-          <p className="text-sm text-slate-500">{usuario.edad} años</p>
+          <p className="font-semibold text-slate-900">{usuario.alias}</p>
+          {usuario.edad !== null && <p className="text-sm text-slate-500">{usuario.edad} años</p>}
         </div>
       </Tarjeta>
 
@@ -33,10 +31,6 @@ export function PerfilView({ usuario, iniciales }: PerfilViewProps) {
           Mis datos
         </h2>
         <dl className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Alias</dt>
-            <dd className="text-slate-900">{usuario.alias}</dd>
-          </div>
           <div className="flex justify-between">
             <dt className="text-slate-500">Datos</dt>
             <dd className="text-slate-900">Ficticios (demostración)</dd>

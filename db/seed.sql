@@ -13,6 +13,16 @@ insert into emojis (simbolo, nombre, valor, senal) values
   ('😡', 'enojado',     1, 'irritabilidad')
 on conflict (simbolo) do nothing;
 
+-- nombre = archivo del ícono en public/iconos/emociones/<nombre>.svg
+insert into emociones (nombre, etiqueta, valor, orden) values
+  ('felicidad',    'Felicidad',    5, 1),
+  ('tranquilidad', 'Tranquilidad', 4, 2),
+  ('estres',       'Estrés',       2, 3),
+  ('tristeza',     'Tristeza',     1, 4),
+  ('ansiedad',     'Ansiedad',     1, 5),
+  ('otra',         'Otra',         3, 6)
+on conflict (nombre) do nothing;
+
 insert into aplicaciones (nombre, categoria) values
   ('Instagram',        'redes_sociales'),
   ('TikTok',           'redes_sociales'),

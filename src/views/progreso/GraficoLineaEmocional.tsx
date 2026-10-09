@@ -6,6 +6,7 @@ const ANCHO = 320;
 const ALTO = 176;
 const MARGEN = { izquierda: 26, derecha: 14, arriba: 18, abajo: 30 };
 const RADIO = 11;
+const ICONO = 17;
 const NIVELES = [1, 2, 3, 4, 5];
 const MAXIMO_ETIQUETAS = 7;
 
@@ -61,9 +62,13 @@ export function GraficoLineaEmocional({ puntos }: { puntos: readonly PuntoGrafic
         return (
           <g key={`${punto.etiqueta}-${i}`}>
             <circle cx={x(i)} cy={y(punto.intensidad)} r={RADIO} fill={tono.relleno} stroke={tono.trazo} strokeWidth="1.5" />
-            <text x={x(i)} y={y(punto.intensidad)} textAnchor="middle" dominantBaseline="central" fontSize="12">
-              {punto.emocion.emoji}
-            </text>
+            <image
+              href={punto.emocion.icono}
+              x={x(i) - ICONO / 2}
+              y={y(punto.intensidad) - ICONO / 2}
+              width={ICONO}
+              height={ICONO}
+            />
             {mostrarEtiqueta && (
               <text x={x(i)} y={ALTO - 10} textAnchor="middle" fontSize="9" fill="#64748b">
                 {punto.etiqueta}

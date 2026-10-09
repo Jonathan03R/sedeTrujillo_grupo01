@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Ansiedad">
+  <defs>
+    <linearGradient id="cara" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6DA6E8"/>
+      <stop offset="0.5" stop-color="#9DBFE0"/>
+      <stop offset="1" stop-color="#FFD35F"/>
+    </linearGradient>
+  </defs>
+  <circle cx="48" cy="48" r="44" fill="url(#cara)"/>
+  <path d="M22 36 Q32 28 42 36" fill="none" stroke="#2E4A73" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M74 36 Q64 28 54 36" fill="none" stroke="#2E4A73" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="32" cy="48" r="7" fill="#FFFFFF"/>
+  <circle cx="64" cy="48" r="7" fill="#FFFFFF"/>
+  <circle cx="33" cy="49" r="3.5" fill="#2E4A73"/>
+  <circle cx="63" cy="49" r="3.5" fill="#2E4A73"/>
+  <path d="M34 70 Q41 63 48 68 Q55 73 62 66" fill="none" stroke="#7A3B12" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 18 C75 25 75 30 80 32 C85 30 85 25 80 18Z" fill="#BFE0FA" stroke="#6FA8DC" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { CargandoPantalla } from "@/components/ui/CargandoPantalla";
+import { ConCarga } from "@/components/ui/ConCarga";
 import { obtenerPantallaEjercicios } from "@/controllers/ejercicios.controller";
 import { EjerciciosView } from "@/views/ejercicios/EjerciciosView";
 
@@ -9,8 +8,8 @@ async function Contenido() {
 
 export default function PaginaEjercicios() {
   return (
-    <Suspense fallback={<CargandoPantalla />}>
+    <ConCarga>
       <Contenido />
-    </Suspense>
+    </ConCarga>
   );
 }

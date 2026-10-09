@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { CargandoPantalla } from "@/components/ui/CargandoPantalla";
+import { ConCarga } from "@/components/ui/ConCarga";
 import { obtenerPantallaProgreso } from "@/controllers/progreso.controller";
 import { ProgresoView } from "@/views/progreso/ProgresoView";
 
@@ -9,8 +8,8 @@ async function Contenido() {
 
 export default function PaginaProgreso() {
   return (
-    <Suspense fallback={<CargandoPantalla />}>
+    <ConCarga>
       <Contenido />
-    </Suspense>
+    </ConCarga>
   );
 }

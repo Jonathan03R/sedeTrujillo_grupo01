@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Otra emoción">
+  <defs>
+    <radialGradient id="cara" cx="0.5" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#E6E9EE"/>
+      <stop offset="1" stop-color="#B3B9C4"/>
+    </radialGradient>
+  </defs>
+  <circle cx="48" cy="48" r="44" fill="url(#cara)"/>
+  <circle cx="32" cy="44" r="4.5" fill="#4A5160"/>
+  <circle cx="64" cy="44" r="4.5" fill="#4A5160"/>
+  <path d="M34 64 L62 64" fill="none" stroke="#4A5160" stroke-width="4" stroke-linecap="round"/>
+</svg>

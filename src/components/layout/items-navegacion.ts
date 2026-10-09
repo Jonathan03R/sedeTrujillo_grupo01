@@ -1,4 +1,4 @@
-import { ChartColumn, Droplet, House, User, type LucideIcon } from "lucide-react";
+import { ChartColumn, Droplet, House, Smartphone, User, type LucideIcon } from "lucide-react";
 
 export interface ItemNavegacion {
   href: string;
@@ -9,8 +9,9 @@ export interface ItemNavegacion {
 }
 
 export const ITEMS_NAVEGACION: readonly ItemNavegacion[] = [
-  { href: "/", etiqueta: "Inicio", icono: House, rellenar: true },
+  { href: "/inicio", etiqueta: "Inicio", icono: House, rellenar: true },
   { href: "/ejercicios", etiqueta: "Ejercicios", icono: Droplet, rellenar: true },
   { href: "/progreso", etiqueta: "Progreso", icono: ChartColumn, rellenar: false },
+  { href: "/uso", etiqueta: "Uso", icono: Smartphone, rellenar: false },
   { href: "/perfil", etiqueta: "Perfil", icono: User, rellenar: true },
 ];

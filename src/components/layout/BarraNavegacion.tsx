@@ -12,9 +12,9 @@ export function BarraNavegacion() {
       aria-label="Navegación principal"
       className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
-      <ul className="mx-auto grid max-w-md grid-cols-4">
+      <ul className="mx-auto grid max-w-md grid-cols-5">
         {ITEMS_NAVEGACION.map(({ href, etiqueta, icono: Icono, rellenar }) => {
-          const activo = href === "/" ? ruta === "/" : ruta.startsWith(href);
+          const activo = ruta.startsWith(href);
           return (
             <li key={href}>
               <Link

@@ -56,6 +56,19 @@ create table emojis (
   activo    boolean not null default true
 );
 
+-- Catálogo de emociones de la pantalla de registro (canvas · pantalla 1).
+-- nombre: clave de la emoción y nombre del ícono en public/iconos/emociones/<nombre>.svg.
+-- valor: 1 = muy negativo, 5 = muy positivo. orden: posición en la pantalla.
+create table emociones (
+  emocion_id  bigint generated always as identity primary key,
+  nombre      text not null unique
+              check (nombre in ('tranquilidad', 'felicidad', 'estres', 'tristeza', 'ansiedad', 'otra')),
+  etiqueta    text not null,
+  valor       smallint not null check (valor between 1 and 5),
+  orden       smallint not null default 0,
+  activo      boolean not null default true
+);
+
 -- Preguntas que la app hace al usuario
 create table preguntas (
   pregunta_id  bigint generated always as identity primary key,
@@ -76,16 +89,17 @@ create table respuestas (
   activo         boolean not null default true
 );
 
--- Canvas · Paso 5: registro del estado emocional (pantalla 1 del MVP)
+-- Canvas · Paso 5: registro del estado emocional (pantalla 1 del MVP).
+-- Cada fila es la respuesta a la pregunta fija de la pantalla de entrada, «¿Qué emoción sientes?»:
+-- la respuesta es una emoción del catálogo (emocion_id) con su intensidad. La IA usa estas filas en sus análisis.
+-- (La pregunta del día, tablas preguntas/respuestas, es otro análisis aparte.)
 create table registros_emocionales (
   registro_emocional_id  bigint generated always as identity primary key,
   usuario_id             bigint not null references usuarios (usuario_id),
-  emocion                text not null
-                         check (emocion in ('tranquilidad', 'felicidad', 'estres', 'tristeza', 'ansiedad')),
+  emocion_id             bigint not null references emociones (emocion_id),
   intensidad             smallint not null check (intensidad between 1 and 5),
   nivel_estres           smallint check (nivel_estres between 1 and 5),
-  emocion_despues        text
-                         check (emocion_despues in ('tranquilidad', 'felicidad', 'estres', 'tristeza', 'ansiedad')),
+  emocion_despues_id     bigint references emociones (emocion_id),
   registrado_en          timestamptz not null default now(),
   activo                 boolean not null default true
 );
@@ -101,7 +115,55 @@ create table recomendaciones_autocuidado (
   activo                        boolean not null default true
 );
 
+-- Monitoreo del teléfono en segundo plano: cada vez que la persona abre una app.
+-- En el prototipo web los datos son ficticios (db/seed-uso-telefono.sql).
+-- anomalia_simulada: solo demostración, anomalía sembrada a propósito (null = rutina normal); nunca se envía a la IA.
+create table sesiones_telefono (
+  sesion_telefono_id  bigint generated always as identity primary key,
+  usuario_id          bigint not null references usuarios (usuario_id),
+  aplicacion_id       bigint not null references aplicaciones (aplicacion_id),
+  inicio              timestamptz not null,
+  minuto              integer not null check (minuto between 0 and 1440),
+  anomalia_simulada   text,
+  activo              boolean not null default true
+);
+
+-- Análisis de la IA sobre una ventana de uso del teléfono (detección temprana, no diagnóstico)
+create table analisis_uso_telefono (
+  analisis_uso_telefono_id  bigint generated always as identity primary key,
+  usuario_id                bigint not null references usuarios (usuario_id),
+  desde                     timestamptz not null,
+  hasta                     timestamptz not null,
+  nivel_atencion            text not null check (nivel_atencion in ('bajo', 'medio', 'alto')),
+  senal_predominante        text
+                            check (senal_predominante in ('bienestar', 'cansancio', 'animo_bajo', 'activacion', 'irritabilidad')),
+  resumen                   text not null,
+  sugerencias               text[] not null default '{}',
+  sugerir_profesional       boolean not null default false,
+  modelo                    text not null,
+  creado_en                 timestamptz not null default now(),
+  activo                    boolean not null default true,
+  check (hasta > desde)
+);
+
+-- Anomalías que la IA encontró en cada análisis
+create table anomalias_uso_telefono (
+  anomalia_uso_telefono_id  bigint generated always as identity primary key,
+  analisis_uso_telefono_id  bigint not null references analisis_uso_telefono (analisis_uso_telefono_id),
+  tipo                      text not null
+                            check (tipo in ('uso_nocturno', 'pico_uso', 'revision_frecuente',
+                                            'menos_contacto', 'abandono_rutina', 'otro')),
+  fecha                     date not null,
+  severidad                 text not null check (severidad in ('leve', 'moderada', 'alta')),
+  descripcion               text not null,
+  activo                    boolean not null default true
+);
+
 -- Índices para las consultas de análisis
+create index on sesiones_telefono (usuario_id, inicio);
+create index on sesiones_telefono (aplicacion_id);
+create index on analisis_uso_telefono (usuario_id, creado_en);
+create index on anomalias_uso_telefono (analisis_uso_telefono_id);
 create index on usos_aplicaciones (usuario_id, fecha);
 create index on usos_aplicaciones (aplicacion_id);
 create index on respuestas (usuario_id, respondido_en);
@@ -109,6 +171,7 @@ create index on respuestas (pregunta_id);
 create index on respuestas (emoji_id);
 create index on respuestas (aplicacion_id);
 create index on registros_emocionales (usuario_id, registrado_en);
+create index on registros_emocionales (emocion_id);
 create index on recomendaciones_autocuidado (registro_emocional_id);
 
 -- Análisis: valor emocional promedio de las respuestas por app, junto con el tiempo de uso total.
@@ -157,13 +220,14 @@ with respuestas_recientes as (
   group by r.usuario_id
 ),
 registros_recientes as (
-  select usuario_id, count(*) as total_registro_intenso
-  from registros_emocionales
-  where activo
-    and registrado_en >= now() - interval '7 days'
-    and intensidad >= 4
-    and emocion in ('estres', 'ansiedad', 'tristeza')
-  group by usuario_id
+  select re.usuario_id, count(*) as total_registro_intenso
+  from registros_emocionales re
+  join emociones em on em.emocion_id = re.emocion_id
+  where re.activo
+    and re.registrado_en >= now() - interval '7 days'
+    and re.intensidad >= 4
+    and em.nombre in ('estres', 'ansiedad', 'tristeza')
+  group by re.usuario_id
 )
 select
   u.usuario_id,
@@ -199,9 +263,13 @@ alter table usuarios                    enable row level security;
 alter table aplicaciones                enable row level security;
 alter table usos_aplicaciones           enable row level security;
 alter table emojis                      enable row level security;
+alter table emociones                   enable row level security;
 alter table preguntas                   enable row level security;
 alter table respuestas                  enable row level security;
 alter table registros_emocionales       enable row level security;
 alter table recomendaciones_autocuidado enable row level security;
+alter table sesiones_telefono           enable row level security;
+alter table analisis_uso_telefono       enable row level security;
+alter table anomalias_uso_telefono      enable row level security;
 
 commit;

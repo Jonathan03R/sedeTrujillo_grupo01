@@ -1,4 +1,7 @@
+import { Check } from "lucide-react";
 import type { Emocion, EmocionId } from "@/models/emocion.model";
+import { IconoEmocion } from "./IconoEmocion";
+import { TONOS_EMOCION } from "./tonos-emocion";
 
 interface SelectorEmocionProps {
   emociones: readonly Emocion[];
@@ -8,9 +11,10 @@ interface SelectorEmocionProps {
 
 export function SelectorEmocion({ emociones, valor, onCambiar }: SelectorEmocionProps) {
   return (
-    <div role="radiogroup" aria-label="Emoción" className="grid grid-cols-2 gap-2">
+    <div role="radiogroup" aria-label="Emoción" className="grid grid-cols-3 gap-3">
       {emociones.map((emocion) => {
         const seleccionada = emocion.id === valor;
+        const tono = TONOS_EMOCION[emocion.id];
         return (
           <button
             key={emocion.id}
@@ -18,15 +22,19 @@ export function SelectorEmocion({ emociones, valor, onCambiar }: SelectorEmocion
             role="radio"
             aria-checked={seleccionada}
             onClick={() => onCambiar(emocion.id)}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-colors last:odd:col-span-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
-              seleccionada
-                ? "border-blue-600 bg-blue-50 text-blue-700"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 px-1 py-4 text-[13px] font-medium text-slate-800 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${tono.tarjeta} ${
+              seleccionada ? tono.seleccionada : "border-transparent hover:brightness-95"
             }`}
           >
-            <span className="text-2xl" aria-hidden="true">
-              {emocion.emoji}
-            </span>
+            {seleccionada && (
+              <span
+                aria-hidden="true"
+                className={`absolute top-2 right-2 flex size-6 items-center justify-center rounded-full text-white ${tono.insignia}`}
+              >
+                <Check className="size-4" strokeWidth={3} />
+              </span>
+            )}
+            <IconoEmocion emocion={emocion} className="size-16" />
             {emocion.etiqueta}
           </button>
         );

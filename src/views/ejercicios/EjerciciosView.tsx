@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecomendacionApoyo } from "@/components/ejercicios/RecomendacionApoyo";
 import { TarjetaEjercicio } from "@/components/ejercicios/TarjetaEjercicio";
 import { AlertaEmocional } from "@/components/emociones/AlertaEmocional";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
@@ -6,7 +7,6 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import type { AlertaEmocional as DatosAlerta, Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import { EjercicioRecomendado } from "./EjercicioRecomendado";
 import { PasosEjercicio } from "./PasosEjercicio";
-import { RecomendacionApoyo } from "./RecomendacionApoyo";
 import { RespiracionGuiada } from "./RespiracionGuiada";
 
 interface EjerciciosViewProps {
@@ -19,14 +19,14 @@ interface EjerciciosViewProps {
 export function EjerciciosView({ alerta, apoyo, recomendado, otros }: EjerciciosViewProps) {
   return (
     <div className="space-y-5">
-      <EncabezadoPantalla titulo="Mi momento de calma" volverA="/" />
+      <EncabezadoPantalla titulo="Mi momento de calma" volverA="/inicio" />
 
       {alerta ? (
         <AlertaEmocional {...alerta} />
       ) : (
         <Tarjeta>
           <p className="text-sm text-slate-600">Aún no registras cómo te sientes.</p>
-          <Link href="/" className="mt-1 inline-block text-sm font-semibold text-blue-600 hover:underline">
+          <Link href="/registro" className="mt-1 inline-block text-sm font-semibold text-blue-600 hover:underline">
             Registrar mi emoción
           </Link>
         </Tarjeta>

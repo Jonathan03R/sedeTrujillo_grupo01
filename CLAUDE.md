@@ -15,14 +15,19 @@ Reglas de oro del proyecto:
 
 Arquitectura web (Next.js 16 + Tailwind, MVC en `src/`). Leer `node_modules/next/dist/docs/` antes de usar APIs de Next (ver AGENTS.md):
 - `models/`: tipos y reglas del dominio. Sin React ni acceso a datos.
-- `repositories/`: acceso a datos. Hoy devuelven datos ficticios; se cambian por Supabase sin tocar el resto.
+- `repositories/`: acceso a datos. Usuarios y registros emocionales leen/escriben en Supabase con `lib/supabase/servidor.ts` (llave `service_role`, solo servidor, protegido con `server-only`). Ejercicios y hábitos siguen siendo catálogos fijos en código. Las variables viven en `.env` (ignorado por git; plantilla en `.env.example`). Nunca poner `SUPABASE_SERVICE_ROLE_KEY` con prefijo `NEXT_PUBLIC_`.
+- La persona de demostración es el usuario con alias `Yoana` (`db/seed-demo.sql`). La tabla `usuarios` solo guarda alias: el alias es el nombre visible.
 - `controllers/`: validan, deciden y arman los datos de cada pantalla. `registro.controller.ts` es la Server Action (`"use server"`) y valida todo lo que recibe.
 - `views/<pantalla>/`: la pantalla y sus piezas propias. Solo presentan; no consultan datos.
 - `components/`: piezas reutilizables sin lógica de negocio (`ui/`, `layout/`, `emociones/`, `ejercicios/`).
 - `app/(app)/`: rutas delgadas. Cada `page.tsx` solo llama a un controlador y pinta una vista.
+- Flujo de entrada: la primera pantalla siempre es `/registro` (sin menú). `src/proxy.ts` redirige cualquier ruta de la app a `/registro` si falta la cookie de check-in (`lib/checkin.ts`, vale 4 h). Al registrar, la acción `registrar-emocion.action.ts` guarda, pone la cookie y redirige a `/inicio` (con menú). No mostrar en la UI que el registro es «obligatorio».
 - `lib/`: utilidades puras (por ejemplo `fechas.ts`). No leen el reloj: con Cache Components, `Date.now()`/`new Date()` en el render rompe el prerenderizado.
 - Datos que cambian por petición (como los registros emocionales): el repositorio llama `await connection()` y la página envuelve el contenido en `<Suspense fallback={<CargandoPantalla />}>`.
 - Los colores por emoción viven en `components/emociones/tonos-emocion.ts`; no repetirlos en cada componente.
+- Pantalla de entrada: la pregunta es fija (`PREGUNTA_REGISTRO`, «¿Qué emoción sientes?») y sus respuestas son las emociones de la tabla `emociones`; cada respuesta se guarda en `registros_emocionales` con `emocion_id` y la IA la usa en sus análisis. La pregunta del día (`preguntas`/`respuestas`) es otro análisis y no se muestra en el registro.
+- Uso del teléfono (`/uso`): el monitoreo en segundo plano se simula con `sesiones_telefono` (`db/uso-telefono.sql`, datos en `db/seed-uso-telefono.sql`, con anomalías sembradas en `anomalia_simulada`, que nunca se envía a la IA). `analizar-uso.action.ts` manda la semana a Claude (`lib/ia/cliente.ts`, llave `ANTHROPIC_API_KEY` solo en servidor), valida la respuesta y la guarda en `analisis_uso_telefono` + `anomalias_uso_telefono`.
+- Los íconos de emociones son SVG en `public/iconos/emociones/<id>.svg` (uno por `EmocionId`, ruta en `Emocion.icono`); la ilustración de bienvenida está en `public/ilustraciones/`. Mostrarlos con `IconoEmocion`/`AvatarEmocion`, no con emojis de texto. Al añadir una emoción: modelo, ícono SVG, tono, mensaje en `recomendacion.controller.ts` y las restricciones `check` de `db/schema.sql` (y en la base real).
 - Nombres en español. Una responsabilidad por archivo; si una pieza se usa en dos pantallas, va a `components/`.
 
 Convención de la base de datos ([db/schema.sql](db/schema.sql)):

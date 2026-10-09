@@ -1,39 +1,79 @@
 import { connection } from "next/server";
+import { esEmocionId, type EmocionId, type Intensidad } from "@/models/emocion.model";
 import type { NuevoRegistroEmocional, RegistroEmocional } from "@/models/registro-emocional.model";
+import { lanzarSiHayError, obtenerClienteServidor } from "@/lib/supabase/servidor";
+import { obtenerUsuarioActual } from "./usuario.repository";
 
-// FUENTE DE DATOS FICTICIA EN MEMORIA (se reinicia al reiniciar el servidor).
-// Reemplazar por consultas a Supabase (tabla registros_emocionales, ver db/schema.sql).
-const registros: RegistroEmocional[] = [
-  { id: 1, emocion: "estres", intensidad: 4, registradoEn: "2026-09-14T20:10:00-05:00" },
-  { id: 2, emocion: "ansiedad", intensidad: 3, registradoEn: "2026-09-16T09:00:00-05:00" },
-  { id: 3, emocion: "tristeza", intensidad: 3, registradoEn: "2026-09-19T19:30:00-05:00" },
-  { id: 4, emocion: "estres", intensidad: 4, registradoEn: "2026-09-22T08:45:00-05:00" },
-  { id: 5, emocion: "ansiedad", intensidad: 4, registradoEn: "2026-09-24T21:15:00-05:00" },
-  { id: 6, emocion: "estres", intensidad: 4, registradoEn: "2026-09-26T10:00:00-05:00" },
-  { id: 7, emocion: "ansiedad", intensidad: 4, registradoEn: "2026-09-28T22:00:00-05:00" },
-  { id: 8, emocion: "estres", intensidad: 3, registradoEn: "2026-09-30T13:20:00-05:00" },
-  { id: 9, emocion: "tristeza", intensidad: 2, registradoEn: "2026-10-02T19:00:00-05:00" },
-  { id: 10, emocion: "estres", intensidad: 4, registradoEn: "2026-10-03T08:40:00-05:00" },
-  { id: 11, emocion: "ansiedad", intensidad: 3, registradoEn: "2026-10-04T21:00:00-05:00" },
-  { id: 12, emocion: "estres", intensidad: 5, registradoEn: "2026-10-05T09:15:00-05:00" },
-  { id: 13, emocion: "tristeza", intensidad: 2, registradoEn: "2026-10-06T18:30:00-05:00" },
-  { id: 14, emocion: "tranquilidad", intensidad: 3, registradoEn: "2026-10-07T12:00:00-05:00" },
-  { id: 15, emocion: "estres", intensidad: 5, registradoEn: "2026-10-08T20:15:00-05:00" },
-  { id: 16, emocion: "tranquilidad", intensidad: 2, registradoEn: "2026-10-09T10:30:00-05:00" },
-];
-
-export async function listarRegistros(): Promise<readonly RegistroEmocional[]> {
-  // Los registros cambian con cada petición: excluir esta lectura del prerenderizado.
-  // Las páginas que la usan deben envolverse en <Suspense>.
-  await connection();
-  return registros;
+// Tabla registros_emocionales (ver db/schema.sql). Borrado lógico: solo filas con activo = true.
+// Cada fila es la respuesta a «¿Qué emoción sientes?»: la emoción se guarda como emocion_id (tabla emociones).
+interface FilaRegistro {
+  registro_emocional_id: number;
+  intensidad: Intensidad;
+  registrado_en: string;
+  emociones: { nombre: string };
 }
 
+const COLUMNAS = "registro_emocional_id, intensidad, registrado_en, emociones!registros_emocionales_emocion_id_fkey (nombre)";
+
+function aModelo(fila: FilaRegistro): RegistroEmocional | null {
+  const emocion = fila.emociones.nombre;
+  if (!esEmocionId(emocion)) return null; // emoción que la app no sabe pintar
+  return {
+    id: fila.registro_emocional_id,
+    emocion,
+    intensidad: fila.intensidad,
+    registradoEn: fila.registrado_en,
+  };
+}
+
+export async function listarRegistros(): Promise<readonly RegistroEmocional[]> {
+  await connection(); // los registros cambian con cada petición: excluir del prerenderizado
+  const usuario = await obtenerUsuarioActual();
+
+  const { data, error } = await obtenerClienteServidor()
+    .from("registros_emocionales")
+    .select(COLUMNAS)
+    .eq("usuario_id", usuario.id)
+    .eq("activo", true)
+    .order("registrado_en", { ascending: true })
+    .overrideTypes<FilaRegistro[]>();
+
+  lanzarSiHayError("listar registros emocionales", error);
+  return (data ?? []).flatMap((fila) => aModelo(fila) ?? []);
+}
+
+/** Id de la emoción en el catálogo, o null si no existe o está inactiva. */
+async function buscarIdEmocionActiva(emocion: EmocionId): Promise<number | null> {
+  const { data, error } = await obtenerClienteServidor()
+    .from("emociones")
+    .select("emocion_id")
+    .eq("nombre", emocion)
+    .eq("activo", true)
+    .maybeSingle<{ emocion_id: number }>();
+
+  lanzarSiHayError("buscar la emoción", error);
+  return data?.emocion_id ?? null;
+}
+
+/** Guarda el registro. Devuelve null si la emoción no está disponible en el catálogo. */
 export async function guardarRegistro(
   nuevo: NuevoRegistroEmocional,
   registradoEn: string,
-): Promise<RegistroEmocional> {
-  const registro: RegistroEmocional = { id: registros.length + 1, ...nuevo, registradoEn };
-  registros.push(registro);
-  return registro;
+): Promise<RegistroEmocional | null> {
+  const [usuario, emocionId] = await Promise.all([obtenerUsuarioActual(), buscarIdEmocionActiva(nuevo.emocion)]);
+  if (emocionId === null) return null;
+
+  const { data, error } = await obtenerClienteServidor()
+    .from("registros_emocionales")
+    .insert({
+      usuario_id: usuario.id,
+      emocion_id: emocionId,
+      intensidad: nuevo.intensidad,
+      registrado_en: registradoEn,
+    })
+    .select(COLUMNAS)
+    .single<FilaRegistro>();
+
+  lanzarSiHayError("guardar el registro emocional", error);
+  return aModelo(data as FilaRegistro);
 }

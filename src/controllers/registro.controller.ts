@@ -1,23 +1,9 @@
-"use server";
+import { listarEmociones } from "@/repositories/emocion.repository";
+import { obtenerUsuarioActual } from "@/repositories/usuario.repository";
 
-import { esEmocionId, esIntensidad } from "@/models/emocion.model";
-import type { ResultadoRegistro } from "@/models/registro-emocional.model";
-import { buscarEjercicioParaEmocion } from "@/repositories/ejercicio.repository";
-import { guardarRegistro } from "@/repositories/registro-emocional.repository";
-
-// Server Action: se puede invocar con un POST directo, por eso valida todo lo que recibe.
-// TODO: verificar la sesión del usuario cuando exista autenticación.
-export async function registrarEmocion(
-  emocion: unknown,
-  intensidad: unknown,
-): Promise<ResultadoRegistro> {
-  if (!esEmocionId(emocion) || !esIntensidad(intensidad)) {
-    return { ok: false, error: "Elige una emoción y una intensidad del 1 al 5." };
-  }
-
-  await guardarRegistro({ emocion, intensidad }, new Date().toISOString());
-
-  // Recomendación por reglas. Más adelante: recomendación personalizada con IA generativa.
-  const recomendacion = await buscarEjercicioParaEmocion(emocion);
-  return { ok: true, recomendacion };
+// Pantalla de entrada: la pregunta es siempre la misma (PREGUNTA_REGISTRO) y las respuestas posibles
+// son las emociones activas del catálogo. La pregunta del día (preguntas/respuestas) es otro análisis.
+export async function obtenerPantallaRegistro() {
+  const [usuario, emociones] = await Promise.all([obtenerUsuarioActual(), listarEmociones()]);
+  return { nombre: usuario.alias, emociones };
 }
