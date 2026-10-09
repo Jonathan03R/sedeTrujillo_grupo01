@@ -13,6 +13,18 @@ Reglas de oro del proyecto:
 2. La app apoya la autorregulación; no diagnostica trastornos mentales.
 3. Ante señales de riesgo, la app deriva a ayuda profesional.
 
+Arquitectura web (Next.js 16 + Tailwind, MVC en `src/`). Leer `node_modules/next/dist/docs/` antes de usar APIs de Next (ver AGENTS.md):
+- `models/`: tipos y reglas del dominio. Sin React ni acceso a datos.
+- `repositories/`: acceso a datos. Hoy devuelven datos ficticios; se cambian por Supabase sin tocar el resto.
+- `controllers/`: validan, deciden y arman los datos de cada pantalla. `registro.controller.ts` es la Server Action (`"use server"`) y valida todo lo que recibe.
+- `views/<pantalla>/`: la pantalla y sus piezas propias. Solo presentan; no consultan datos.
+- `components/`: piezas reutilizables sin lógica de negocio (`ui/`, `layout/`, `emociones/`, `ejercicios/`).
+- `app/(app)/`: rutas delgadas. Cada `page.tsx` solo llama a un controlador y pinta una vista.
+- `lib/`: utilidades puras (por ejemplo `fechas.ts`). No leen el reloj: con Cache Components, `Date.now()`/`new Date()` en el render rompe el prerenderizado.
+- Datos que cambian por petición (como los registros emocionales): el repositorio llama `await connection()` y la página envuelve el contenido en `<Suspense fallback={<CargandoPantalla />}>`.
+- Los colores por emoción viven en `components/emociones/tonos-emocion.ts`; no repetirlos en cada componente.
+- Nombres en español. Una responsabilidad por archivo; si una pieza se usa en dos pantallas, va a `components/`.
+
 Convención de la base de datos ([db/schema.sql](db/schema.sql)):
 - Tablas en plural y en español; columnas en singular.
 - La llave primaria es `<singular_de_la_tabla>_id` (`preguntas` → `pregunta_id`); las llaves foráneas usan el mismo nombre.
