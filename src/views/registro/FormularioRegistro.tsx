@@ -10,6 +10,7 @@ import { TituloPaso } from "@/components/ui/TituloPaso";
 import { registrarEmocion } from "@/controllers/registrar-emocion.action";
 import type { Emocion, EmocionId, Intensidad } from "@/models/emocion.model";
 import type { Ubicacion } from "@/models/ubicacion.model";
+import { BotonVoz } from "./BotonVoz";
 import { PREGUNTA_REGISTRO } from "@/models/registro-emocional.model";
 
 const ESPERA_UBICACION_MS = 8_000;
@@ -34,16 +35,29 @@ export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[
   const [pendiente, iniciarTransicion] = useTransition();
 
   // Si el registro es válido, la acción redirige a /inicio y este código no llega a ejecutar setError.
-  function registrar() {
+  function registrar(emocionElegida: EmocionId | null, intensidadElegida: Intensidad) {
     iniciarTransicion(async () => {
       // El navegador le pide permiso a la persona; si dice que no (o no hay), se sigue sin ubicación.
-      const respuesta = await registrarEmocion(emocion, intensidad, await pedirUbicacion());
+      const respuesta = await registrarEmocion(emocionElegida, intensidadElegida, await pedirUbicacion());
       setError(respuesta.error);
     });
   }
 
   return (
     <div className="space-y-4">
+      <BotonVoz
+        emociones={emociones}
+        onEntendido={(emocionEntendida, intensidadEntendida) => {
+          if (emocionEntendida) setEmocion(emocionEntendida);
+          if (intensidadEntendida) setIntensidad(intensidadEntendida);
+        }}
+        onConfirmar={(emocionConfirmada, intensidadConfirmada) => {
+          setEmocion(emocionConfirmada);
+          setIntensidad(intensidadConfirmada);
+          registrar(emocionConfirmada, intensidadConfirmada);
+        }}
+      />
+
       <Tarjeta aria-labelledby="paso-emocion" className="rounded-3xl p-5">
         <TituloPaso id="paso-emocion" numero={1} titulo={PREGUNTA_REGISTRO} />
         <div className="mt-4">
@@ -71,7 +85,7 @@ export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[
 
       <Boton
         tamano="grande"
-        onClick={registrar}
+        onClick={() => registrar(emocion, intensidad)}
         disabled={!emocion || pendiente}
         className="relative shadow-lg shadow-blue-500/30"
       >
