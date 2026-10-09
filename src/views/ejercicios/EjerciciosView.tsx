@@ -2,13 +2,11 @@ import Link from "next/link";
 import { AlternativasAutocuidado } from "@/components/ejercicios/AlternativasAutocuidado";
 import { RecomendacionApoyo } from "@/components/ejercicios/RecomendacionApoyo";
 import { TarjetaEjercicio } from "@/components/ejercicios/TarjetaEjercicio";
-import { TarjetaLugar } from "@/components/ejercicios/TarjetaLugar";
-import { TarjetaVideo } from "@/components/ejercicios/TarjetaVideo";
 import { AlertaEmocional } from "@/components/emociones/AlertaEmocional";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
 import { EnlaceBoton } from "@/components/ui/EnlaceBoton";
 import { Tarjeta } from "@/components/ui/Tarjeta";
-import type { AlternativaAutocuidado, LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
+import type { AlternativaAutocuidado } from "@/models/autocuidado.model";
 import type { AlertaEmocional as DatosAlerta, Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import { EjercicioRecomendado } from "./EjercicioRecomendado";
 
@@ -19,13 +17,11 @@ interface EjerciciosViewProps {
   recomendado: Ejercicio | null;
   otros: readonly Ejercicio[];
   alternativas: readonly AlternativaAutocuidado[];
-  lugar: LugarRecomendado | null;
-  video: VideoRecomendado | null;
 }
 
-// Todo lo que cambia con el registro (título, mensaje, ejercicio, ideas, lugar y video) viene de la
+// Todo lo que cambia con el registro (título, mensaje, ejercicio e ideas) viene de la
 // recomendación que armó la IA para ese registro. El catálogo solo aporta el ejercicio y sus datos.
-export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas, lugar, video }: EjerciciosViewProps) {
+export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas }: EjerciciosViewProps) {
   return (
     <div className="space-y-5">
       <EncabezadoPantalla titulo="Mi momento de calma" volverA="/inicio" />
@@ -53,8 +49,6 @@ export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas
       )}
 
       <AlternativasAutocuidado alternativas={alternativas} />
-      {lugar && <TarjetaLugar lugar={lugar} />}
-      {video && <TarjetaVideo video={video} />}
 
       {otros.length > 0 && (
       <section aria-labelledby="mas-ejercicios">

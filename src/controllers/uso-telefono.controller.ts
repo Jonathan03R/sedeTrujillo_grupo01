@@ -49,12 +49,8 @@ function textoHoras(minutos: number): string {
   return horas > 0 ? `${horas} h ${resto} min` : `${resto} min`;
 }
 
-export async function obtenerPantallaUsoTelefono() {
-  const [todas, analisis, alertaRoja] = await Promise.all([
-    listarSesionesTelefono(),
-    obtenerUltimoAnalisis(),
-    obtenerAlertaPendiente(),
-  ]);
+/** Los totales de los últimos días con datos: tiempo por día, de madrugada y aperturas. */
+export function resumirUso(todas: readonly SesionTelefono[]) {
   const ventana = ventanaReciente(todas);
   const dias = ventana ? resumirPorDia(ventana) : [];
 
@@ -67,7 +63,14 @@ export async function obtenerPantallaUsoTelefono() {
     promedioDiario: dias.length > 0 ? textoHoras(minutoTotal / dias.length) : null,
     madrugada: textoHoras(minutoMadrugada),
     aperturaPromedio: dias.length > 0 ? Math.round(apertura / dias.length) : 0,
-    analisis,
-    alertaRoja,
   };
+}
+
+export async function obtenerPantallaUsoTelefono() {
+  const [todas, analisis, alertaRoja] = await Promise.all([
+    listarSesionesTelefono(),
+    obtenerUltimoAnalisis(),
+    obtenerAlertaPendiente(),
+  ]);
+  return { ...resumirUso(todas), analisis, alertaRoja };
 }

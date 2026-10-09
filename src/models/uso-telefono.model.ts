@@ -86,6 +86,9 @@ export interface AnalisisUsoTelefono {
   sugerirProfesional: boolean;
   /** Cambios muy bruscos en la rutina: la app muestra una alerta roja y lanza una notificación. */
   alertaRoja: boolean;
+  /** Pregunta de la tabla preguntas que la IA eligió según el análisis (null si ninguna aportaba). */
+  preguntaId: number | null;
+  motivoPregunta: string | null;
   modelo: string;
   creadoEn: string;
   anomalias: readonly AnomaliaUso[];

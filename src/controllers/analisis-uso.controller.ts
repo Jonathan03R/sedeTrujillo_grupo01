@@ -1,4 +1,12 @@
 import "server-only";
+import {
+  DIAS_EVALUACIONES_PROXIMAS,
+  ETIQUETA_EVALUACION,
+  esClaseDeNoche,
+  nombreDia,
+  type ClaseHorario,
+  type EvaluacionProxima,
+} from "@/models/academico.model";
 import { INTENSIDAD_MAXIMA, buscarEmocion } from "@/models/emocion.model";
 import type { PreguntaAlerta } from "@/models/notificacion.model";
 import { PREGUNTA_REGISTRO } from "@/models/registro-emocional.model";
@@ -17,12 +25,14 @@ import {
   type NuevoAnalisisUsoTelefono,
   type SesionTelefono,
 } from "@/models/uso-telefono.model";
-import { diaLocal, fechaHoraCompacta, fechaLocal, inicioDiaLocal } from "@/lib/fechas";
+import { diaLocal, etiquetaDiaSemana, fechaHoraCompacta, fechaLocal, inicioDiaLocal } from "@/lib/fechas";
 import { MODELO_IA, obtenerClienteIA } from "@/lib/ia/cliente";
 import { contieneLenguajeClinico, textoValido } from "@/lib/ia/lenguaje";
 import { guardarAnalisis, obtenerUltimoAnalisis } from "@/repositories/analisis-uso-telefono.repository";
 import { crearNotificacion } from "@/repositories/notificacion.repository";
+import { listarClases, listarEvaluaciones } from "@/repositories/horario.repository";
 import { listarPreguntasAlerta } from "@/repositories/pregunta-alerta.repository";
+import { listarPreguntas } from "@/repositories/pregunta.repository";
 import { listarRegistros } from "@/repositories/registro-emocional.repository";
 import { listarSesionesTelefono } from "@/repositories/sesion-telefono.repository";
 import { obtenerUsuarioActual } from "@/repositories/usuario.repository";
@@ -50,6 +60,8 @@ Tu tarea:
 6. Da de 2 a 4 sugerencias concretas de autocuidado y autorregulación, conectadas con lo que viste (higiene del sueño, pausas, límites de apps, contactar a alguien de confianza, respiración). Cada una en una frase corta.
 7. Decide alerta_roja. Es true solo cuando los cambios son muy bruscos respecto a la propia rutina: por ejemplo, un cambio fuerte que se repite o empeora varios días seguidos, o varias anomalías de severidad alta. Es poco frecuente: si la rutina es estable o los cambios son leves o aislados, es false.
 8. Si alerta_roja es true, escribe mensaje_alerta (1 o 2 frases) que cuente con calidez el cambio principal con un dato concreto, y elige pregunta_alerta_id: el id de la pregunta del catálogo que mejor corresponda al cambio más importante (por ejemplo, si lo principal es dormir muy tarde, la pregunta sobre el sueño o la madrugada). Si no hay alerta roja, mensaje_alerta es "" y pregunta_alerta_id es ${SIN_PREGUNTA}.
+9. Contexto académico: recibes el horario semanal de la persona (clases, algunas de noche) y sus exámenes y tareas próximos. Úsalo para entender el uso del teléfono: el uso nocturno o de madrugada puede estar ligado a clases de noche o a entregas cercanas, y pasar mucho tiempo en el teléfono justo antes de un examen puede ser un cambio relevante. Son pistas, no causas: no juzgues.
+10. pregunta_seguimiento_id: elige el id de UNA pregunta del catálogo de preguntas de seguimiento que mejor ayude a entender cómo está la persona hoy, según lo que cruzaste (por ejemplo, si hay desvelos y un examen cerca, «¿Cómo dormiste anoche?»; si hubo muchas clases y tareas, «¿Cómo estuvo tu día en la universidad?»). Escribe motivo_pregunta: 1 frase cálida, dirigida a la persona, que explique por qué se la hacemos con un dato concreto (por ejemplo, «Tienes un examen en 3 días y esta semana te acostaste tarde»). Usa ${SIN_PREGUNTA} y motivo vacío solo si ninguna pregunta aporta.
 
 Reglas obligatorias:
 - No diagnosticas. Nunca nombres trastornos ni condiciones clínicas (nada de "depresión", "trastorno", "adicción", "insomnio" como diagnóstico). Habla de señales y cambios: "notamos que últimamente…".
@@ -57,7 +69,7 @@ Reglas obligatorias:
 - Háblale a la persona de tú, en español neutro, cálido y breve, sin dar por hecho su género. El resumen: 2 o 3 frases. Las descripciones de anomalías: 1 frase con el dato concreto (hora, minutos o veces).
 - No añadas avisos legales ni digas que no eres un profesional: la app ya lo muestra.`;
 
-function esquemaRespuesta(preguntas: readonly PreguntaAlerta[]) {
+function esquemaRespuesta(preguntas: readonly PreguntaAlerta[], idsSeguimiento: readonly number[]) {
   return {
     type: "object",
     properties: {
@@ -83,6 +95,8 @@ function esquemaRespuesta(preguntas: readonly PreguntaAlerta[]) {
       alerta_roja: { type: "boolean" },
       mensaje_alerta: { type: "string" },
       pregunta_alerta_id: { type: "integer", enum: [SIN_PREGUNTA, ...preguntas.map((p) => p.id)] },
+      pregunta_seguimiento_id: { type: "integer", enum: [SIN_PREGUNTA, ...idsSeguimiento] },
+      motivo_pregunta: { type: "string" },
     },
     required: [
       "nivel_atencion",
@@ -94,6 +108,8 @@ function esquemaRespuesta(preguntas: readonly PreguntaAlerta[]) {
       "alerta_roja",
       "mensaje_alerta",
       "pregunta_alerta_id",
+      "pregunta_seguimiento_id",
+      "motivo_pregunta",
     ],
     additionalProperties: false,
   } as const;
@@ -101,6 +117,7 @@ function esquemaRespuesta(preguntas: readonly PreguntaAlerta[]) {
 
 const MAXIMO_TEXTO = 600;
 const MAXIMO_SUGERENCIAS = 5;
+const MAXIMO_MOTIVO_PREGUNTA = 200;
 const PESO_SEVERIDAD = { leve: 1, moderada: 2, alta: 3 } as const;
 
 function lineaSesion(sesion: SesionTelefono): string {
@@ -136,6 +153,7 @@ function validarRespuesta(
   bruto: unknown,
   fechasValidas: ReadonlySet<string>,
   preguntas: readonly PreguntaAlerta[],
+  idsSeguimiento: readonly number[],
 ): AnalisisValidado | null {
   if (typeof bruto !== "object" || bruto === null) return null;
   const r = bruto as Record<string, unknown>;
@@ -162,13 +180,19 @@ function validarRespuesta(
   const alertaRoja = r.alerta_roja === true && anomalias.length > 0 && r.nivel_atencion !== "bajo";
   if (alertaRoja && !mensaje) return null;
 
-  const textos = [resumen, ...sugerencias, ...anomalias.map((a) => a.descripcion), ...(mensaje ? [mensaje] : [])];
+  // La pregunta de seguimiento solo vale si existe en el catálogo y trae un motivo válido.
+  const motivoPregunta = textoValido(r.motivo_pregunta, MAXIMO_MOTIVO_PREGUNTA);
+  const preguntaId = typeof r.pregunta_seguimiento_id === "number" && idsSeguimiento.includes(r.pregunta_seguimiento_id) && motivoPregunta ? r.pregunta_seguimiento_id : null;
+
+  const textos = [resumen, ...sugerencias, ...anomalias.map((a) => a.descripcion), ...(mensaje ? [mensaje] : []), ...(motivoPregunta ? [motivoPregunta] : [])];
   if (contieneLenguajeClinico(textos)) return null;
 
   const preguntaAlertaId = alertaRoja ? elegirPregunta(r.pregunta_alerta_id, anomalias, preguntas) : null;
 
   return {
     nivelAtencion: r.nivel_atencion,
+    preguntaId,
+    motivoPregunta: preguntaId === null ? null : motivoPregunta,
     senalPredominante: esSenal(r.senal_predominante) ? r.senal_predominante : null,
     resumen,
     anomalias,
@@ -180,12 +204,20 @@ function validarRespuesta(
   };
 }
 
+interface ContextoAcademico {
+  hoy: string;
+  clases: readonly ClaseHorario[];
+  evaluaciones: readonly EvaluacionProxima[];
+  preguntasSeguimiento: readonly { id: number; texto: string }[];
+}
+
 function armarDatos(
   dias: ReturnType<typeof resumirPorDia>,
   ventana: NonNullable<ReturnType<typeof ventanaReciente>>,
   edad: number | null,
   registros: Awaited<ReturnType<typeof listarRegistros>>,
   preguntas: readonly PreguntaAlerta[],
+  academico: ContextoAcademico,
 ): string {
   // Solo se envía la edad y el uso: ni alias ni otros datos que identifiquen a la persona.
   return [
@@ -213,16 +245,48 @@ function armarDatos(
     "",
     "Catálogo de preguntas de alerta (id · cambio al que corresponde · pregunta):",
     ...preguntas.map((p) => `- ${p.id} · ${p.tipo} · ${p.texto}`),
+    "",
+    `Hoy es ${academico.hoy} (hora de Lima).`,
+    "",
+    "Horario semanal de clases (día · horario · curso):",
+    ...(academico.clases.length > 0
+      ? academico.clases.map((c) => `- ${nombreDia(c.diaSemana)} ${c.horaInicio}-${c.horaFin} · ${c.curso}${esClaseDeNoche(c) ? " (de noche)" : ""}`)
+      : ["- (sin horario cargado)"]),
+    "",
+    `Exámenes y tareas de los próximos ${DIAS_EVALUACIONES_PROXIMAS} días:`,
+    ...(academico.evaluaciones.length > 0
+      ? academico.evaluaciones.map(
+          (e) => `- ${ETIQUETA_EVALUACION[e.tipo]} · ${e.curso} · ${e.titulo} · ${e.fecha} (${e.diasRestantes === 0 ? "hoy" : `en ${e.diasRestantes} días`})`,
+        )
+      : ["- (ninguno)"]),
+    "",
+    "Catálogo de preguntas de seguimiento (id · pregunta):",
+    ...academico.preguntasSeguimiento.map((p) => `- ${p.id} · ${p.texto}`),
   ].join("\n");
 }
 
 async function analizar(): Promise<void> {
-  const [todas, registros, usuario, preguntas] = await Promise.all([
+  const [todas, registros, usuario, preguntas, preguntasSeguimiento, clases, evaluaciones] = await Promise.all([
     listarSesionesTelefono(),
     listarRegistros(),
     obtenerUsuarioActual(),
     listarPreguntasAlerta(),
+    listarPreguntas(),
+    listarClases(),
+    listarEvaluaciones(),
   ]);
+  const ahora = new Date().toISOString();
+  const hoy = diaLocal(ahora);
+  // Solo cuentan las evaluaciones de las próximas semanas (desde hoy).
+  const proximas: EvaluacionProxima[] = evaluaciones
+    .map((e) => ({ ...e, diasRestantes: diaLocal(`${e.fecha}T00:00:00-05:00`) - hoy }))
+    .filter((e) => e.diasRestantes >= 0 && e.diasRestantes <= DIAS_EVALUACIONES_PROXIMAS);
+  const academico: ContextoAcademico = {
+    hoy: `${etiquetaDiaSemana(ahora)} ${fechaLocal(hoy)}`,
+    clases,
+    evaluaciones: proximas,
+    preguntasSeguimiento,
+  };
   const ventana = ventanaReciente(todas);
   if (!ventana) return;
 
@@ -238,9 +302,9 @@ async function analizar(): Promise<void> {
     max_tokens: 16000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "medium", format: { type: "json_schema", schema: esquemaRespuesta(preguntas) } },
+    output_config: { effort: "medium", format: { type: "json_schema", schema: esquemaRespuesta(preguntas, preguntasSeguimiento.map((p) => p.id)) } },
     system: INSTRUCCIONES,
-    messages: [{ role: "user", content: armarDatos(dias, ventana, usuario.edad, registrosVentana, preguntas) }],
+    messages: [{ role: "user", content: armarDatos(dias, ventana, usuario.edad, registrosVentana, preguntas, academico) }],
   });
 
   if (respuesta.stop_reason === "refusal" || respuesta.stop_reason === "max_tokens") {
@@ -249,7 +313,7 @@ async function analizar(): Promise<void> {
   }
 
   const bloque = respuesta.content.find((b) => b.type === "text");
-  const analisis = bloque ? validarRespuesta(JSON.parse(bloque.text), fechasValidas, preguntas) : null;
+  const analisis = bloque ? validarRespuesta(JSON.parse(bloque.text), fechasValidas, preguntas, preguntasSeguimiento.map((p) => p.id)) : null;
   if (!analisis) {
     console.error("IA · la respuesta del análisis no pasó la validación", bloque?.type === "text" ? bloque.text : "");
     return;

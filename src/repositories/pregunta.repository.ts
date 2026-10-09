@@ -40,3 +40,15 @@ export async function obtenerPreguntaDelDia(): Promise<PreguntaDelDia | null> {
 
   return { id: Number(pregunta.pregunta_id), texto: pregunta.texto, respondida: (count ?? 0) > 0 };
 }
+
+/** Las preguntas activas, entre las que la IA elige la de seguimiento. */
+export async function listarPreguntas(): Promise<readonly { id: number; texto: string }[]> {
+  const { data, error } = await obtenerClienteServidor()
+    .from("preguntas")
+    .select("pregunta_id, texto")
+    .eq("activo", true)
+    .order("pregunta_id", { ascending: true });
+
+  lanzarSiHayError("listar preguntas", error);
+  return (data ?? []).map((p) => ({ id: Number(p.pregunta_id), texto: p.texto }));
+}

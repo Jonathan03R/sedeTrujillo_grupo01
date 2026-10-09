@@ -159,6 +159,9 @@ create table analisis_uso_telefono (
   sugerir_profesional       boolean not null default false,
   -- Cambios muy bruscos en la rutina: la app muestra una alerta roja y lanza una notificación
   alerta_roja               boolean not null default false,
+  -- Pregunta de la tabla preguntas que la IA eligió según el análisis (horario + uso del teléfono) y por qué
+  pregunta_id               bigint references preguntas (pregunta_id),
+  motivo_pregunta           text,
   modelo                    text not null,
   creado_en                 timestamptz not null default now(),
   activo                    boolean not null default true,
@@ -217,6 +220,30 @@ create table recomendaciones_ejercicios (
   unique (emocion_id, intensidad_desde)
 );
 
+-- Horario académico (clases, exámenes y tareas). La IA lo cruza con el uso del teléfono. Datos en db/seed-horario.sql (ficticios).
+-- Clases de la semana. dia_semana: 1 = lunes ... 7 = domingo.
+create table horarios_clases (
+  horario_clase_id  bigint generated always as identity primary key,
+  usuario_id        bigint not null references usuarios (usuario_id),
+  curso             text not null,
+  dia_semana        smallint not null check (dia_semana between 1 and 7),
+  hora_inicio       time not null,
+  hora_fin          time not null,
+  activo            boolean not null default true,
+  check (hora_fin > hora_inicio)
+);
+
+-- Exámenes y tareas por entregar
+create table evaluaciones (
+  evaluacion_id  bigint generated always as identity primary key,
+  usuario_id     bigint not null references usuarios (usuario_id),
+  tipo           text not null check (tipo in ('examen', 'tarea')),
+  curso          text not null,
+  titulo         text not null,
+  fecha          date not null,
+  activo         boolean not null default true
+);
+
 -- Índices para las consultas de análisis
 create index on preguntas_alerta (tipo_anomalia);
 create index on notificaciones (usuario_id, creado_en);
@@ -235,6 +262,8 @@ create index on registros_emocionales (usuario_id, registrado_en);
 create index on registros_emocionales (emocion_id);
 create index on recomendaciones_autocuidado (registro_emocional_id);
 create index on gustos (usuario_id);
+create index on horarios_clases (usuario_id, dia_semana);
+create index on evaluaciones (usuario_id, fecha);
 create index on recomendaciones_ejercicios (emocion_id);
 create unique index on gustos (usuario_id, lower(texto)) where activo;
 
@@ -338,6 +367,8 @@ alter table anomalias_uso_telefono      enable row level security;
 alter table preguntas_alerta            enable row level security;
 alter table notificaciones              enable row level security;
 alter table gustos                      enable row level security;
+alter table horarios_clases             enable row level security;
+alter table evaluaciones                enable row level security;
 alter table recomendaciones_ejercicios  enable row level security;
 alter table videos_gustos               enable row level security;
 

@@ -1,25 +1,22 @@
 import { HeartHandshake } from "lucide-react";
 import { AlertaRoja } from "@/components/alertas/AlertaRoja";
 import { AlternativasAutocuidado } from "@/components/ejercicios/AlternativasAutocuidado";
-import { TarjetaLugar } from "@/components/ejercicios/TarjetaLugar";
-import { TarjetaVideo } from "@/components/ejercicios/TarjetaVideo";
-import { TarjetaVideoGusto } from "@/components/ejercicios/TarjetaVideoGusto";
-import type { VideoGusto } from "@/repositories/video-gusto.repository";
 import { TarjetaEstadoActual } from "@/components/emociones/TarjetaEstadoActual";
 import { AvisoApoyo } from "@/components/ui/AvisoApoyo";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { EnlaceBoton } from "@/components/ui/EnlaceBoton";
-import { TituloPantalla } from "@/components/ui/TituloPantalla";
+import { PreguntaSeguimiento } from "@/components/preguntas/PreguntaSeguimiento";
 import { responderAlerta } from "@/controllers/responder-notificacion.action";
-import type { AlternativaAutocuidado, LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
+import { responderPregunta } from "@/controllers/responder-pregunta.action";
+import type { AlternativaAutocuidado } from "@/models/autocuidado.model";
 import type { Emocion } from "@/models/emocion.model";
 import type { Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import type { Notificacion } from "@/models/notificacion.model";
+import type { EmojiRespuesta, PreguntaSeguimiento as DatosPregunta } from "@/models/pregunta.model";
 import type { EstadoActual } from "@/models/progreso.model";
 import { EjercicioDestacado } from "./EjercicioDestacado";
 
 interface InicioViewProps {
-  nombre: string;
   estado: EstadoActual | null;
   apoyo: MensajeApoyo | null;
   /** El ejercicio de hoy; null si la franja de intensidad de hoy solo lleva recomendación. */
@@ -27,21 +24,17 @@ interface InicioViewProps {
   /** Mensaje de la IA para esta persona (null si no hubo personalización). */
   mensaje: string | null;
   alternativas: readonly AlternativaAutocuidado[];
-  /** Lugar cercano y video que la IA buscó y eligió para esta persona (null si no hubo). */
-  lugar: LugarRecomendado | null;
-  video: VideoRecomendado | null;
   alertaRoja: { notificacion: Notificacion; emociones: readonly Emocion[] } | null;
-  /** Video de demostración según un gusto de la persona (datos ficticios). */
-  videoGusto: VideoGusto | null;
+  /** La pregunta que la IA eligió al cruzar el horario con el uso del teléfono (null si no hay). */
+  preguntaSeguimiento: { pregunta: DatosPregunta; emojis: readonly EmojiRespuesta[] } | null;
 }
 
-export function InicioView({ nombre, estado, apoyo, recomendado, mensaje, alternativas, lugar, video, alertaRoja, videoGusto }: InicioViewProps) {
+export function InicioView({ estado, apoyo, recomendado, mensaje, alternativas, alertaRoja, preguntaSeguimiento }: InicioViewProps) {
   return (
     <div className="space-y-5">
-      <TituloPantalla titulo={`Hola, ${nombre}`} subtitulo="Esto preparamos para ti hoy." />
-
       {alertaRoja && <AlertaRoja {...alertaRoja} onResponder={responderAlerta} />}
       {estado && <TarjetaEstadoActual {...estado} />}
+      {preguntaSeguimiento && <PreguntaSeguimiento {...preguntaSeguimiento} onResponder={responderPregunta} />}
 
       {recomendado ? (
         <EjercicioDestacado ejercicio={recomendado} mensaje={mensaje} />
@@ -56,9 +49,6 @@ export function InicioView({ nombre, estado, apoyo, recomendado, mensaje, altern
         )
       )}
       <AlternativasAutocuidado alternativas={alternativas} />
-      {lugar && <TarjetaLugar lugar={lugar} />}
-      {video && <TarjetaVideo video={video} />}
-      {videoGusto && <TarjetaVideoGusto video={videoGusto} />}
 
       {apoyo?.derivar && (
         <p className="flex items-center gap-3 rounded-2xl bg-violet-50 p-4 text-sm text-slate-700">

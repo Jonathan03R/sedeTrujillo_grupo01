@@ -4,15 +4,21 @@ import { TituloPantalla } from "@/components/ui/TituloPantalla";
 import { agregarGusto, quitarGusto } from "@/controllers/gustos.action";
 import type { Gusto } from "@/models/gusto.model";
 import type { Usuario } from "@/models/usuario.model";
+import type { ClaseHorario, EvaluacionProxima } from "@/models/academico.model";
+import type { DatosRecopilados } from "@/models/perfil.model";
+import { DatosRecopiladosTarjeta } from "./DatosRecopiladosTarjeta";
+import { MiHorario } from "./MiHorario";
 import { MisGustos } from "./MisGustos";
 
 interface PerfilViewProps {
   usuario: Usuario;
   iniciales: string;
   gustos: readonly Gusto[];
+  horario: { clases: readonly ClaseHorario[]; evaluaciones: readonly EvaluacionProxima[] };
+  recopilado: DatosRecopilados;
 }
 
-export function PerfilView({ usuario, iniciales, gustos }: PerfilViewProps) {
+export function PerfilView({ usuario, iniciales, gustos, horario, recopilado }: PerfilViewProps) {
   return (
     <div className="space-y-5">
       <TituloPantalla titulo="Mi perfil" />
@@ -30,6 +36,8 @@ export function PerfilView({ usuario, iniciales, gustos }: PerfilViewProps) {
         </div>
       </Tarjeta>
 
+      <MiHorario clases={horario.clases} evaluaciones={horario.evaluaciones} />
+      <DatosRecopiladosTarjeta datos={recopilado} />
       <MisGustos gustos={gustos} onAgregar={agregarGusto} onQuitar={quitarGusto} />
 
       <Tarjeta aria-labelledby="titulo-datos">

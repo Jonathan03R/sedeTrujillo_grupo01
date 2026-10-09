@@ -30,13 +30,15 @@ interface FilaAnalisis {
   sugerencias: string[];
   sugerir_profesional: boolean;
   alerta_roja: boolean;
+  pregunta_id: number | null;
+  motivo_pregunta: string | null;
   modelo: string;
   creado_en: string;
   anomalias_uso_telefono: FilaAnomalia[];
 }
 
 const COLUMNAS = `analisis_uso_telefono_id, desde, hasta, nivel_atencion, senal_predominante, resumen,
-  sugerencias, sugerir_profesional, alerta_roja, modelo, creado_en,
+  sugerencias, sugerir_profesional, alerta_roja, pregunta_id, motivo_pregunta, modelo, creado_en,
   anomalias_uso_telefono (tipo, fecha, severidad, descripcion, activo)`;
 
 function aAnomalia(fila: FilaAnomalia): AnomaliaUso {
@@ -54,6 +56,8 @@ function aModelo(fila: FilaAnalisis): AnalisisUsoTelefono {
     sugerencias: fila.sugerencias,
     sugerirProfesional: fila.sugerir_profesional,
     alertaRoja: fila.alerta_roja,
+    preguntaId: fila.pregunta_id,
+    motivoPregunta: fila.motivo_pregunta,
     modelo: fila.modelo,
     creadoEn: fila.creado_en,
     anomalias: fila.anomalias_uso_telefono
@@ -97,6 +101,8 @@ export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<
       sugerencias: nuevo.sugerencias,
       sugerir_profesional: nuevo.sugerirProfesional,
       alerta_roja: nuevo.alertaRoja,
+      pregunta_id: nuevo.preguntaId,
+      motivo_pregunta: nuevo.motivoPregunta,
       modelo: nuevo.modelo,
     })
     .select("analisis_uso_telefono_id")
