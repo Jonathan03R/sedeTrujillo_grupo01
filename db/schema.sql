@@ -116,12 +116,15 @@ create table gustos (
 -- La IA las arma en tiempo real al registrar la emoción, con la emoción, su intensidad (1-10) y los gustos.
 -- recomendacion: mensaje personalizado · ejercicio: id del ejercicio del catálogo de la app
 -- alternativas: ideas de autocuidado [{titulo, descripcion, icono}] · modelo: modelo de IA que las generó
+-- lugar / video: el lugar cercano (OpenStreetMap) y el video (YouTube) que la IA eligió con sus herramientas; null = ninguno
 create table recomendaciones_autocuidado (
   recomendacion_autocuidado_id  bigint generated always as identity primary key,
   registro_emocional_id         bigint not null references registros_emocionales (registro_emocional_id),
   recomendacion                 text not null,
   ejercicio                     text,
   alternativas                  jsonb not null default '[]'::jsonb,
+  lugar                         jsonb,
+  video                         jsonb,
   modelo                        text,
   completado                    boolean not null default false,
   creado_en                     timestamptz not null default now(),

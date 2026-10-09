@@ -1,12 +1,14 @@
 import { HeartHandshake } from "lucide-react";
 import { AlertaRoja } from "@/components/alertas/AlertaRoja";
 import { AlternativasAutocuidado } from "@/components/ejercicios/AlternativasAutocuidado";
+import { TarjetaLugar } from "@/components/ejercicios/TarjetaLugar";
+import { TarjetaVideo } from "@/components/ejercicios/TarjetaVideo";
 import { TarjetaEstadoActual } from "@/components/emociones/TarjetaEstadoActual";
 import { AvisoApoyo } from "@/components/ui/AvisoApoyo";
 import { EnlaceBoton } from "@/components/ui/EnlaceBoton";
 import { TituloPantalla } from "@/components/ui/TituloPantalla";
 import { responderAlerta } from "@/controllers/responder-notificacion.action";
-import type { AlternativaAutocuidado } from "@/models/autocuidado.model";
+import type { AlternativaAutocuidado, LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
 import type { Emocion } from "@/models/emocion.model";
 import type { Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import type { Notificacion } from "@/models/notificacion.model";
@@ -21,10 +23,13 @@ interface InicioViewProps {
   /** Mensaje de la IA para esta persona (null si no hubo personalización). */
   mensaje: string | null;
   alternativas: readonly AlternativaAutocuidado[];
+  /** Lugar cercano y video que la IA buscó y eligió para esta persona (null si no hubo). */
+  lugar: LugarRecomendado | null;
+  video: VideoRecomendado | null;
   alertaRoja: { notificacion: Notificacion; emociones: readonly Emocion[] } | null;
 }
 
-export function InicioView({ nombre, estado, apoyo, recomendado, mensaje, alternativas, alertaRoja }: InicioViewProps) {
+export function InicioView({ nombre, estado, apoyo, recomendado, mensaje, alternativas, lugar, video, alertaRoja }: InicioViewProps) {
   return (
     <div className="space-y-5">
       <TituloPantalla titulo={`Hola, ${nombre}`} subtitulo="Esto preparamos para ti hoy." />
@@ -34,6 +39,8 @@ export function InicioView({ nombre, estado, apoyo, recomendado, mensaje, altern
 
       <EjercicioDestacado ejercicio={recomendado} mensaje={mensaje} />
       <AlternativasAutocuidado alternativas={alternativas} />
+      {lugar && <TarjetaLugar lugar={lugar} />}
+      {video && <TarjetaVideo video={video} />}
 
       {apoyo?.derivar && (
         <p className="flex items-center gap-3 rounded-2xl bg-violet-50 p-4 text-sm text-slate-700">

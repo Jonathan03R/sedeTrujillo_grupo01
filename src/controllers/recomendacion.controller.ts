@@ -86,6 +86,9 @@ export async function obtenerRecomendacionActual() {
     /** El mensaje de la IA para esta persona; null si no hubo personalización. */
     mensaje: personalizada?.mensaje ?? null,
     alternativas: personalizada && personalizada.alternativas.length > 0 ? personalizada.alternativas : ALTERNATIVAS_BASE,
+    /** Un lugar cercano y un video que la IA buscó y eligió con sus herramientas; null si no hubo. */
+    lugar: personalizada?.lugar ?? null,
+    video: personalizada?.video ?? null,
     otros: ejercicios.filter((ejercicio) => ejercicio.id !== recomendado.id),
   };
 }
