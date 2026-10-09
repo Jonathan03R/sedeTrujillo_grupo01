@@ -13,6 +13,7 @@ import { lanzarSiHayError, obtenerClienteServidor } from "@/lib/supabase/servido
 
 // Tabla recomendaciones_autocuidado (ver db/schema.sql). Borrado lógico: solo filas con activo = true.
 interface FilaRecomendacion {
+  titulo: string | null;
   recomendacion: string;
   ejercicio: string | null;
   alternativas: unknown;
@@ -68,7 +69,7 @@ export async function obtenerRecomendacionDelRegistro(registroId: number): Promi
   await connection(); // se genera al registrar: leerla en cada petición
   const { data, error } = await obtenerClienteServidor()
     .from("recomendaciones_autocuidado")
-    .select("recomendacion, ejercicio, alternativas, lugar, video")
+    .select("titulo, recomendacion, ejercicio, alternativas, lugar, video")
     .eq("registro_emocional_id", registroId)
     .eq("activo", true)
     .order("creado_en", { ascending: false })
@@ -76,9 +77,10 @@ export async function obtenerRecomendacionDelRegistro(registroId: number): Promi
     .maybeSingle<FilaRecomendacion>();
 
   lanzarSiHayError("leer la recomendación de autocuidado", error);
-  if (!data?.ejercicio) return null;
+  if (!data) return null;
   return {
-    ejercicioId: data.ejercicio,
+    titulo: data.titulo ?? null,
+    ejercicioId: data.ejercicio ?? null,
     mensaje: data.recomendacion,
     alternativas: aAlternativas(data.alternativas),
     lugar: aLugar(data.lugar),
@@ -89,6 +91,7 @@ export async function obtenerRecomendacionDelRegistro(registroId: number): Promi
 export async function guardarRecomendacion(nueva: NuevaRecomendacionPersonalizada): Promise<void> {
   const { error } = await obtenerClienteServidor().from("recomendaciones_autocuidado").insert({
     registro_emocional_id: nueva.registroEmocionalId,
+    titulo: nueva.titulo,
     recomendacion: nueva.mensaje,
     ejercicio: nueva.ejercicioId,
     alternativas: nueva.alternativas,

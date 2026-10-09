@@ -1,4 +1,4 @@
-import type { Emocion, EmocionId } from "./emocion.model";
+import type { Emocion } from "./emocion.model";
 
 export type TipoEjercicio = "respiracion" | "relajacion" | "autorregulacion";
 
@@ -20,8 +20,6 @@ export interface Ejercicio {
   descripcion: string;
   duracionMinutos: number;
   tipo: TipoEjercicio;
-  /** Emociones para las que se recomienda este ejercicio. */
-  paraEmociones: readonly EmocionId[];
   /** Solo los ejercicios de respiración guiada tienen fases. */
   fases?: readonly FaseRespiracion[];
   /** Instrucciones para los ejercicios que no son de respiración guiada. */

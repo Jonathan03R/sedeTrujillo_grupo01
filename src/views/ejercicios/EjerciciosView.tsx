@@ -2,24 +2,30 @@ import Link from "next/link";
 import { AlternativasAutocuidado } from "@/components/ejercicios/AlternativasAutocuidado";
 import { RecomendacionApoyo } from "@/components/ejercicios/RecomendacionApoyo";
 import { TarjetaEjercicio } from "@/components/ejercicios/TarjetaEjercicio";
+import { TarjetaLugar } from "@/components/ejercicios/TarjetaLugar";
+import { TarjetaVideo } from "@/components/ejercicios/TarjetaVideo";
 import { AlertaEmocional } from "@/components/emociones/AlertaEmocional";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
+import { EnlaceBoton } from "@/components/ui/EnlaceBoton";
 import { Tarjeta } from "@/components/ui/Tarjeta";
-import type { AlternativaAutocuidado } from "@/models/autocuidado.model";
+import type { AlternativaAutocuidado, LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
 import type { AlertaEmocional as DatosAlerta, Ejercicio, MensajeApoyo } from "@/models/ejercicio.model";
 import { EjercicioRecomendado } from "./EjercicioRecomendado";
-import { PasosEjercicio } from "./PasosEjercicio";
-import { RespiracionGuiada } from "./RespiracionGuiada";
 
 interface EjerciciosViewProps {
   alerta: DatosAlerta | null;
   apoyo: MensajeApoyo | null;
-  recomendado: Ejercicio;
+  /** El ejercicio de hoy; null si la franja de intensidad de hoy solo lleva recomendación. */
+  recomendado: Ejercicio | null;
   otros: readonly Ejercicio[];
   alternativas: readonly AlternativaAutocuidado[];
+  lugar: LugarRecomendado | null;
+  video: VideoRecomendado | null;
 }
 
-export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas }: EjerciciosViewProps) {
+// Todo lo que cambia con el registro (título, mensaje, ejercicio, ideas, lugar y video) viene de la
+// recomendación que armó la IA para ese registro. El catálogo solo aporta el ejercicio y sus datos.
+export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas, lugar, video }: EjerciciosViewProps) {
   return (
     <div className="space-y-5">
       <EncabezadoPantalla titulo="Mi momento de calma" volverA="/inicio" />
@@ -37,19 +43,23 @@ export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas
 
       {apoyo && <RecomendacionApoyo {...apoyo} />}
 
-      <EjercicioRecomendado ejercicio={recomendado} />
-
-      {recomendado.fases ? (
-        <RespiracionGuiada titulo={recomendado.titulo} fases={recomendado.fases} />
-      ) : (
-        recomendado.pasos && <PasosEjercicio pasos={recomendado.pasos} />
+      {recomendado && (
+        <>
+          <EjercicioRecomendado ejercicio={recomendado} />
+          <EnlaceBoton href={`/ejercicios/${recomendado.id}`} tamano="grande">
+            {recomendado.fases ? "Respiración guiada" : "Empezar ejercicio"}
+          </EnlaceBoton>
+        </>
       )}
 
       <AlternativasAutocuidado alternativas={alternativas} />
+      {lugar && <TarjetaLugar lugar={lugar} />}
+      {video && <TarjetaVideo video={video} />}
 
+      {otros.length > 0 && (
       <section aria-labelledby="mas-ejercicios">
         <h2 id="mas-ejercicios" className="mb-3 text-sm font-semibold text-slate-900">
-          Más ejercicios
+          Otros ejercicios para esta emoción
         </h2>
         <ul className="space-y-3">
           {otros.map((ejercicio) => (
@@ -59,6 +69,7 @@ export function EjerciciosView({ alerta, apoyo, recomendado, otros, alternativas
           ))}
         </ul>
       </section>
+      )}
     </div>
   );
 }

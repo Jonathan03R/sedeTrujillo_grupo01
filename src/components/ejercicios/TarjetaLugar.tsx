@@ -2,11 +2,14 @@ import { ExternalLink, MapPin } from "lucide-react";
 import { ETIQUETA_ACTIVIDAD, enlaceLugar, type LugarRecomendado } from "@/models/autocuidado.model";
 
 function textoDistancia(metros: number): string {
-  return metros < 1000 ? `a ${Math.round(metros / 10) * 10} m` : `a ${(metros / 1000).toFixed(1).replace(".", ",")} km`;
+  return metros < 1000 ? `a unos ${Math.round(metros / 50) * 50} m` : `a unos ${(metros / 1000).toFixed(1).replace(".", ",")} km`;
 }
 
 /** Un lugar real y cercano que la IA recomienda según lo que le gusta a la persona. */
 export function TarjetaLugar({ lugar }: { lugar: LugarRecomendado }) {
+  // Muchas canchas no tienen nombre en el mapa: el título ya dice qué es, no se repite debajo.
+  const sinNombre = lugar.nombre.startsWith(ETIQUETA_ACTIVIDAD[lugar.actividad]);
+
   return (
     <section aria-labelledby="lugar-cercano">
       <h2 id="lugar-cercano" className="mb-3 text-sm font-semibold text-slate-900">
@@ -23,7 +26,8 @@ export function TarjetaLugar({ lugar }: { lugar: LugarRecomendado }) {
           <div className="min-w-0">
             <h3 className="font-semibold text-slate-900">{lugar.nombre}</h3>
             <p className="text-xs text-slate-500">
-              {ETIQUETA_ACTIVIDAD[lugar.actividad]} · {textoDistancia(lugar.distanciaMetros)}
+              {sinNombre ? "" : `${ETIQUETA_ACTIVIDAD[lugar.actividad]} · `}
+              {textoDistancia(lugar.distanciaMetros)}
             </p>
           </div>
         </div>

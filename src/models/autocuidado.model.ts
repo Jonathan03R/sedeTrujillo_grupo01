@@ -67,8 +67,10 @@ export interface VideoRecomendado extends Video {
 
 /** Lo que la IA preparó para el último registro emocional. */
 export interface RecomendacionPersonalizada {
-  /** Id del ejercicio del catálogo de la app (ver repositories/ejercicio.repository.ts). */
-  ejercicioId: string;
+  /** Título corto que escribió la IA para esta pantalla. null en recomendaciones anteriores. */
+  titulo: string | null;
+  /** Id del ejercicio del catálogo de la app; null si esa franja solo lleva recomendación, sin ejercicio. */
+  ejercicioId: string | null;
   /** Mensaje corto y cálido para esta persona. */
   mensaje: string;
   alternativas: readonly AlternativaAutocuidado[];

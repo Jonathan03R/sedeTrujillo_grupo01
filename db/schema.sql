@@ -122,6 +122,7 @@ create table recomendaciones_autocuidado (
   registro_emocional_id         bigint not null references registros_emocionales (registro_emocional_id),
   recomendacion                 text not null,
   ejercicio                     text,
+  titulo                        text,
   alternativas                  jsonb not null default '[]'::jsonb,
   lugar                         jsonb,
   video                         jsonb,
@@ -202,6 +203,20 @@ create table notificaciones (
   check ((respuesta_emocion_id is null) = (respondida_en is null))
 );
 
+-- Recomendación y ejercicio por emoción e intensidad (franjas 1-4, 5-7 y 8-10). La IA personaliza el mensaje, no el ejercicio.
+-- ejercicio = id del catálogo de la app; null = solo recomendación, sin ejercicio. Datos en db/recomendaciones-ejercicios.sql
+create table recomendaciones_ejercicios (
+  recomendacion_ejercicio_id  bigint generated always as identity primary key,
+  emocion_id                  bigint not null references emociones (emocion_id),
+  intensidad_desde            smallint not null check (intensidad_desde between 1 and 10),
+  intensidad_hasta            smallint not null check (intensidad_hasta between 1 and 10),
+  recomendacion               text not null,
+  ejercicio                   text,
+  activo                      boolean not null default true,
+  check (intensidad_desde <= intensidad_hasta),
+  unique (emocion_id, intensidad_desde)
+);
+
 -- Índices para las consultas de análisis
 create index on preguntas_alerta (tipo_anomalia);
 create index on notificaciones (usuario_id, creado_en);
@@ -220,6 +235,7 @@ create index on registros_emocionales (usuario_id, registrado_en);
 create index on registros_emocionales (emocion_id);
 create index on recomendaciones_autocuidado (registro_emocional_id);
 create index on gustos (usuario_id);
+create index on recomendaciones_ejercicios (emocion_id);
 create unique index on gustos (usuario_id, lower(texto)) where activo;
 
 -- Análisis: valor emocional promedio de las respuestas por app, junto con el tiempo de uso total.
@@ -322,5 +338,18 @@ alter table anomalias_uso_telefono      enable row level security;
 alter table preguntas_alerta            enable row level security;
 alter table notificaciones              enable row level security;
 alter table gustos                      enable row level security;
+alter table recomendaciones_ejercicios  enable row level security;
+alter table videos_gustos               enable row level security;
 
 commit;
+
+-- Videos de demostración (FICTICIOS) ligados a los gustos. El enlace abre una búsqueda de YouTube.
+create table videos_gustos (
+  video_gusto_id  bigint generated always as identity primary key,
+  gusto           text not null,
+  titulo          text not null,
+  canal           text not null,
+  consulta        text not null,
+  activo          boolean not null default true
+);
+create index on videos_gustos (lower(gusto));

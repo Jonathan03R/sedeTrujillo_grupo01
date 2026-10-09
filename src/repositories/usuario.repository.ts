@@ -1,10 +1,6 @@
 import { connection } from "next/server";
-import type { Usuario } from "@/models/usuario.model";
+import { ALIAS_DEMO, type Usuario } from "@/models/usuario.model";
 import { lanzarSiHayError, obtenerClienteServidor } from "@/lib/supabase/servidor";
-
-// Persona de demostración (ficticia, ver db/seed-demo.sql).
-// TODO: reemplazar por el usuario autenticado cuando exista inicio de sesión.
-const ALIAS_DEMO = "Yoana";
 
 export async function obtenerUsuarioActual(): Promise<Usuario> {
   await connection(); // lectura por petición: excluir del prerenderizado

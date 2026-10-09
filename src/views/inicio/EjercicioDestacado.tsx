@@ -41,7 +41,7 @@ export function EjercicioDestacado({ ejercicio, mensaje }: EjercicioDestacadoPro
 
       <p className="text-sm leading-relaxed text-slate-700">{mensaje ?? ejercicio.descripcion}</p>
 
-      <EnlaceBoton href="/ejercicios" tamano="grande">
+      <EnlaceBoton href={`/ejercicios/${ejercicio.id}`} tamano="grande">
         {ejercicio.fases ? "Respiración guiada" : "Empezar ejercicio"}
       </EnlaceBoton>
     </Tarjeta>
