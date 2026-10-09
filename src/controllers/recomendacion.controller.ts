@@ -1,4 +1,4 @@
-import { buscarEmocion, type EmocionId } from "@/models/emocion.model";
+import { INTENSIDAD_ALTA, buscarEmocion, type EmocionId } from "@/models/emocion.model";
 import type { AlertaEmocional, MensajeApoyo } from "@/models/ejercicio.model";
 import { buscarEjercicioParaEmocion, listarEjercicios } from "@/repositories/ejercicio.repository";
 import { listarRegistros } from "@/repositories/registro-emocional.repository";
@@ -55,7 +55,7 @@ export async function obtenerRecomendacionActual() {
         ? "Es normal sentirse así. Aquí tienes una recomendación para ayudarte."
         : "Gracias por registrar cómo te sientes. Aquí tienes una sugerencia.",
     };
-    apoyo = { ...APOYO_POR_EMOCION[ultimo.emocion], derivar: malestar && ultimo.intensidad >= 4 };
+    apoyo = { ...APOYO_POR_EMOCION[ultimo.emocion], derivar: malestar && ultimo.intensidad >= INTENSIDAD_ALTA };
     recomendado = await buscarEjercicioParaEmocion(ultimo.emocion);
   }
 

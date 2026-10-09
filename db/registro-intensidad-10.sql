@@ -1,28 +1,31 @@
--- Migración: el registro emocional guarda la emoción del catálogo (emocion_id) · Pulso · Equipo 01
--- Para una base que ya existe (en una nueva, schema.sql ya lo incluye). Ejecutar después de db/emociones.sql.
--- Es seguro repetirlo.
+-- Migración: el registro guarda solo la emoción y su intensidad del 1 al 10 · Pulso · Equipo 01
+-- Para una base que ya existe (en una nueva, schema.sql ya lo incluye). Ejecutar después de
+-- db/registro-emocion-id.sql. Es seguro repetirlo: solo reescala una vez.
 --
--- La pantalla de entrada hace siempre la misma pregunta, «¿Qué emoción sientes?», y sus posibles
--- respuestas son las emociones de la tabla emociones. Cada registro queda ligado a esa fila para el
--- análisis de la IA. La pregunta del día (preguntas/respuestas) es otro análisis y no se toca.
+-- «¿Qué tan intensa es?» pasa de 1-5 a 1-10. Los registros viejos se multiplican por 2
+-- (1 -> 2, 5 -> 10) para conservar su lugar en la escala.
+-- Se quitan nivel_estres y emocion_despues: la pantalla no los pregunta ni se calculan.
 
 begin;
 
-alter table registros_emocionales add column if not exists emocion_id         bigint references emociones (emocion_id);
+alter table registros_emocionales drop column if exists nivel_estres;
+alter table registros_emocionales drop column if exists emocion_despues;
+alter table registros_emocionales drop column if exists emocion_despues_id;
 
 do $$
 begin
-  if exists (select 1 from information_schema.columns
-             where table_schema = 'public' and table_name = 'registros_emocionales' and column_name = 'emocion') then
-    update registros_emocionales r set emocion_id = e.emocion_id
-    from emociones e where e.nombre = r.emocion and r.emocion_id is null;
+  -- Solo si la restricción todavía es la de 1-5 (así una segunda ejecución no vuelve a duplicar)
+  if exists (select 1 from pg_constraint
+             where conname = 'registros_emocionales_intensidad_check'
+               and pg_get_constraintdef(oid) like '%<= 5%') then
+    alter table registros_emocionales drop constraint registros_emocionales_intensidad_check;
+    update registros_emocionales set intensidad = intensidad * 2;
+    alter table registros_emocionales
+      add constraint registros_emocionales_intensidad_check check (intensidad between 1 and 10);
   end if;
 end $$;
 
-alter table registros_emocionales alter column emocion_id set not null;
-create index if not exists registros_emocionales_emocion_id_idx on registros_emocionales (emocion_id);
-
--- La vista deja de leer la columna de texto antes de borrarla
+-- El umbral de «registro intenso» pasa de 4 (de 5) a 7 (de 10)
 -- Aproximación sin diagnosticar: nivel de atención por usuario en una ventana de 7 días.
 -- Los umbrales son heurísticos y deben validarse con un profesional de salud mental.
 create or replace view vista_atencion_usuarios with (security_invoker = true) as
@@ -48,7 +51,7 @@ registros_recientes as (
   join emociones em on em.emocion_id = re.emocion_id
   where re.activo
     and re.registrado_en >= now() - interval '7 days'
-    and re.intensidad >= 4
+    and re.intensidad >= 7
     and em.nombre in ('estres', 'ansiedad', 'tristeza')
   group by re.usuario_id
 )
@@ -79,9 +82,6 @@ from usuarios u
 left join respuestas_recientes rr on rr.usuario_id = u.usuario_id
 left join registros_recientes  rg on rg.usuario_id = u.usuario_id
 where u.activo;
-
-alter table registros_emocionales drop column if exists emocion;
-alter table registros_emocionales drop column if exists emocion_despues;
 
 commit;
 

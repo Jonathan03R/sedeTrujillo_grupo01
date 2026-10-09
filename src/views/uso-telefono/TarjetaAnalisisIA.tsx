@@ -8,7 +8,6 @@ import {
   type Severidad,
 } from "@/models/uso-telefono.model";
 import { etiquetaDiaMes, fechaHoraLegible } from "@/lib/fechas";
-import { BotonAnalizar } from "./BotonAnalizar";
 
 const PRESENTACION_NIVEL: Record<NivelAtencion, { texto: string; clases: string }> = {
   bajo: { texto: "Tu rutina se ve estable", clases: "bg-emerald-50 text-emerald-700" },
@@ -39,10 +38,10 @@ export function TarjetaAnalisisIA({ analisis }: { analisis: AnalisisUsoTelefono 
           Análisis con IA
         </h2>
         <p className="text-sm text-slate-600">
-          La IA compara tu semana con tu propia rutina para notar a tiempo cambios en tu descanso, tu tiempo de
-          pantalla o tu contacto con otras personas, y te sugiere cómo cuidarte.
+          Pulso compara tu semana con tu propia rutina, de forma automática, para notar a tiempo cambios en tu
+          descanso, tu tiempo de pantalla o tu contacto con otras personas. El primer análisis aparece después de tu
+          próximo registro.
         </p>
-        <BotonAnalizar hayAnalisis={false} />
       </Tarjeta>
     );
   }
@@ -115,7 +114,6 @@ export function TarjetaAnalisisIA({ analisis }: { analisis: AnalisisUsoTelefono 
       )}
 
       <p className="text-[11px] text-slate-400">Analizado el {fechaHoraLegible(analisis.creadoEn)}</p>
-      <BotonAnalizar hayAnalisis />
     </Tarjeta>
   );
 }

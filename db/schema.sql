@@ -91,15 +91,14 @@ create table respuestas (
 
 -- Canvas · Paso 5: registro del estado emocional (pantalla 1 del MVP).
 -- Cada fila es la respuesta a la pregunta fija de la pantalla de entrada, «¿Qué emoción sientes?»:
--- la respuesta es una emoción del catálogo (emocion_id) con su intensidad. La IA usa estas filas en sus análisis.
+-- la respuesta es una emoción del catálogo (emocion_id) y su intensidad del 1 al 10 («¿Qué tan intensa es?»).
+-- Solo se guardan esas dos respuestas. La IA usa estas filas en sus análisis.
 -- (La pregunta del día, tablas preguntas/respuestas, es otro análisis aparte.)
 create table registros_emocionales (
   registro_emocional_id  bigint generated always as identity primary key,
   usuario_id             bigint not null references usuarios (usuario_id),
   emocion_id             bigint not null references emociones (emocion_id),
-  intensidad             smallint not null check (intensidad between 1 and 5),
-  nivel_estres           smallint check (nivel_estres between 1 and 5),
-  emocion_despues_id     bigint references emociones (emocion_id),
+  intensidad             smallint not null check (intensidad between 1 and 10),
   registrado_en          timestamptz not null default now(),
   activo                 boolean not null default true
 );
@@ -140,6 +139,8 @@ create table analisis_uso_telefono (
   resumen                   text not null,
   sugerencias               text[] not null default '{}',
   sugerir_profesional       boolean not null default false,
+  -- Cambios muy bruscos en la rutina: la app muestra una alerta roja y lanza una notificación
+  alerta_roja               boolean not null default false,
   modelo                    text not null,
   creado_en                 timestamptz not null default now(),
   activo                    boolean not null default true,
@@ -159,7 +160,35 @@ create table anomalias_uso_telefono (
   activo                    boolean not null default true
 );
 
+-- Preguntas que la app puede lanzar según el tipo de cambio detectado.
+-- Son otro catálogo que la pregunta del día (preguntas): no se mezclan.
+create table preguntas_alerta (
+  pregunta_alerta_id  bigint generated always as identity primary key,
+  tipo_anomalia       text not null
+                      check (tipo_anomalia in ('uso_nocturno', 'pico_uso', 'revision_frecuente',
+                                               'menos_contacto', 'abandono_rutina', 'otro')),
+  texto               text not null unique,
+  activo              boolean not null default true
+);
+
+-- Notificación que recibe la persona cuando hay alerta roja
+create table notificaciones (
+  notificacion_id           bigint generated always as identity primary key,
+  usuario_id                bigint not null references usuarios (usuario_id),
+  analisis_uso_telefono_id  bigint not null references analisis_uso_telefono (analisis_uso_telefono_id),
+  pregunta_alerta_id        bigint not null references preguntas_alerta (pregunta_alerta_id),
+  mensaje                   text not null,
+  respuesta_emocion_id      bigint references emociones (emocion_id),
+  respondida_en             timestamptz,
+  creado_en                 timestamptz not null default now(),
+  activo                    boolean not null default true,
+  check ((respuesta_emocion_id is null) = (respondida_en is null))
+);
+
 -- Índices para las consultas de análisis
+create index on preguntas_alerta (tipo_anomalia);
+create index on notificaciones (usuario_id, creado_en);
+create index on notificaciones (analisis_uso_telefono_id);
 create index on sesiones_telefono (usuario_id, inicio);
 create index on sesiones_telefono (aplicacion_id);
 create index on analisis_uso_telefono (usuario_id, creado_en);
@@ -225,7 +254,7 @@ registros_recientes as (
   join emociones em on em.emocion_id = re.emocion_id
   where re.activo
     and re.registrado_en >= now() - interval '7 days'
-    and re.intensidad >= 4
+    and re.intensidad >= 7
     and em.nombre in ('estres', 'ansiedad', 'tristeza')
   group by re.usuario_id
 )
@@ -271,5 +300,7 @@ alter table recomendaciones_autocuidado enable row level security;
 alter table sesiones_telefono           enable row level security;
 alter table analisis_uso_telefono       enable row level security;
 alter table anomalias_uso_telefono      enable row level security;
+alter table preguntas_alerta            enable row level security;
+alter table notificaciones              enable row level security;
 
 commit;

@@ -1,4 +1,5 @@
 import { TONOS_EMOCION } from "@/components/emociones/tonos-emocion";
+import { INTENSIDAD_MAXIMA } from "@/models/emocion.model";
 import type { PuntoGrafico } from "@/models/progreso.model";
 
 // Medidas internas del SVG (el gráfico escala al ancho disponible).
@@ -7,7 +8,8 @@ const ALTO = 176;
 const MARGEN = { izquierda: 26, derecha: 14, arriba: 18, abajo: 30 };
 const RADIO = 11;
 const ICONO = 17;
-const NIVELES = [1, 2, 3, 4, 5];
+// Líneas guía del eje Y (intensidad de 1 a INTENSIDAD_MAXIMA).
+const NIVELES = [1, 4, 7, 10];
 const MAXIMO_ETIQUETAS = 7;
 
 export function GraficoLineaEmocional({ puntos }: { puntos: readonly PuntoGrafico[] }) {
@@ -22,7 +24,7 @@ export function GraficoLineaEmocional({ puntos }: { puntos: readonly PuntoGrafic
 
   const x = (indice: number) =>
     puntos.length === 1 ? (xInicio + xFin) / 2 : xInicio + (indice * (xFin - xInicio)) / (puntos.length - 1);
-  const y = (nivel: number) => MARGEN.arriba + ((5 - nivel) / 4) * areaAlto;
+  const y = (nivel: number) => MARGEN.arriba + ((INTENSIDAD_MAXIMA - nivel) / (INTENSIDAD_MAXIMA - 1)) * areaAlto;
 
   const trazos = puntos.map((p, i) => `${x(i)},${y(p.intensidad)}`);
   const area = `M${x(0)},${yBase} L${trazos.join(" L")} L${x(puntos.length - 1)},${yBase} Z`;

@@ -7,6 +7,7 @@ import {
 import { diaLocal, etiquetaDiaSemana, horaLocal, inicioDiaLocal } from "@/lib/fechas";
 import { obtenerUltimoAnalisis } from "@/repositories/analisis-uso-telefono.repository";
 import { listarSesionesTelefono } from "@/repositories/sesion-telefono.repository";
+import { obtenerAlertaPendiente } from "./alerta.controller";
 
 export interface VentanaUso {
   sesiones: readonly SesionTelefono[];
@@ -49,7 +50,11 @@ function textoHoras(minutos: number): string {
 }
 
 export async function obtenerPantallaUsoTelefono() {
-  const [todas, analisis] = await Promise.all([listarSesionesTelefono(), obtenerUltimoAnalisis()]);
+  const [todas, analisis, alertaRoja] = await Promise.all([
+    listarSesionesTelefono(),
+    obtenerUltimoAnalisis(),
+    obtenerAlertaPendiente(),
+  ]);
   const ventana = ventanaReciente(todas);
   const dias = ventana ? resumirPorDia(ventana) : [];
 
@@ -63,5 +68,6 @@ export async function obtenerPantallaUsoTelefono() {
     madrugada: textoHoras(minutoMadrugada),
     aperturaPromedio: dias.length > 0 ? Math.round(apertura / dias.length) : 0,
     analisis,
+    alertaRoja,
   };
 }

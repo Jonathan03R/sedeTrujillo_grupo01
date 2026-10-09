@@ -84,6 +84,8 @@ export interface AnalisisUsoTelefono {
   resumen: string;
   sugerencias: readonly string[];
   sugerirProfesional: boolean;
+  /** Cambios muy bruscos en la rutina: la app muestra una alerta roja y lanza una notificación. */
+  alertaRoja: boolean;
   modelo: string;
   creadoEn: string;
   anomalias: readonly AnomaliaUso[];

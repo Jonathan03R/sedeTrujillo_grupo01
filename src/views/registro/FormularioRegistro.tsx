@@ -13,7 +13,7 @@ import { PREGUNTA_REGISTRO } from "@/models/registro-emocional.model";
 
 export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[] }) {
   const [emocion, setEmocion] = useState<EmocionId | null>(null);
-  const [intensidad, setIntensidad] = useState<Intensidad>(3);
+  const [intensidad, setIntensidad] = useState<Intensidad>(5);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciarTransicion] = useTransition();
 

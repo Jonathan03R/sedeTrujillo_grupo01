@@ -1,7 +1,11 @@
 import { Clock, MoonStar, Smartphone, Hand } from "lucide-react";
+import { AlertaRoja } from "@/components/alertas/AlertaRoja";
 import { AvisoApoyo } from "@/components/ui/AvisoApoyo";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
 import { TarjetaIndicador } from "@/components/ui/TarjetaIndicador";
+import { responderAlerta } from "@/controllers/responder-notificacion.action";
+import type { Emocion } from "@/models/emocion.model";
+import type { Notificacion } from "@/models/notificacion.model";
 import type { AnalisisUsoTelefono, ResumenDiaUso } from "@/models/uso-telefono.model";
 import { GraficoUsoSemanal } from "./GraficoUsoSemanal";
 import { TarjetaAnalisisIA } from "./TarjetaAnalisisIA";
@@ -12,12 +16,15 @@ interface UsoTelefonoViewProps {
   madrugada: string;
   aperturaPromedio: number;
   analisis: AnalisisUsoTelefono | null;
+  alertaRoja: { notificacion: Notificacion; emociones: readonly Emocion[] } | null;
 }
 
-export function UsoTelefonoView({ dias, promedioDiario, madrugada, aperturaPromedio, analisis }: UsoTelefonoViewProps) {
+export function UsoTelefonoView({ dias, promedioDiario, madrugada, aperturaPromedio, analisis, alertaRoja }: UsoTelefonoViewProps) {
   return (
     <div className="space-y-5">
       <EncabezadoPantalla titulo="Uso del teléfono" />
+
+      {alertaRoja && <AlertaRoja {...alertaRoja} onResponder={responderAlerta} />}
 
       <p className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">
         <Smartphone className="size-4 shrink-0 text-blue-500" aria-hidden="true" />

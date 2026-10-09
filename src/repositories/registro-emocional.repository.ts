@@ -1,7 +1,8 @@
 import { connection } from "next/server";
-import { esEmocionId, type EmocionId, type Intensidad } from "@/models/emocion.model";
+import { esEmocionId, type Intensidad } from "@/models/emocion.model";
 import type { NuevoRegistroEmocional, RegistroEmocional } from "@/models/registro-emocional.model";
 import { lanzarSiHayError, obtenerClienteServidor } from "@/lib/supabase/servidor";
+import { buscarIdEmocionActiva } from "./emocion.repository";
 import { obtenerUsuarioActual } from "./usuario.repository";
 
 // Tabla registros_emocionales (ver db/schema.sql). Borrado lógico: solo filas con activo = true.
@@ -40,19 +41,6 @@ export async function listarRegistros(): Promise<readonly RegistroEmocional[]> {
 
   lanzarSiHayError("listar registros emocionales", error);
   return (data ?? []).flatMap((fila) => aModelo(fila) ?? []);
-}
-
-/** Id de la emoción en el catálogo, o null si no existe o está inactiva. */
-async function buscarIdEmocionActiva(emocion: EmocionId): Promise<number | null> {
-  const { data, error } = await obtenerClienteServidor()
-    .from("emociones")
-    .select("emocion_id")
-    .eq("nombre", emocion)
-    .eq("activo", true)
-    .maybeSingle<{ emocion_id: number }>();
-
-  lanzarSiHayError("buscar la emoción", error);
-  return data?.emocion_id ?? null;
 }
 
 /** Guarda el registro. Devuelve null si la emoción no está disponible en el catálogo. */

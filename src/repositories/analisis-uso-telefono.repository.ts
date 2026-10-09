@@ -29,13 +29,14 @@ interface FilaAnalisis {
   resumen: string;
   sugerencias: string[];
   sugerir_profesional: boolean;
+  alerta_roja: boolean;
   modelo: string;
   creado_en: string;
   anomalias_uso_telefono: FilaAnomalia[];
 }
 
 const COLUMNAS = `analisis_uso_telefono_id, desde, hasta, nivel_atencion, senal_predominante, resumen,
-  sugerencias, sugerir_profesional, modelo, creado_en,
+  sugerencias, sugerir_profesional, alerta_roja, modelo, creado_en,
   anomalias_uso_telefono (tipo, fecha, severidad, descripcion, activo)`;
 
 function aAnomalia(fila: FilaAnomalia): AnomaliaUso {
@@ -52,6 +53,7 @@ function aModelo(fila: FilaAnalisis): AnalisisUsoTelefono {
     resumen: fila.resumen,
     sugerencias: fila.sugerencias,
     sugerirProfesional: fila.sugerir_profesional,
+    alertaRoja: fila.alerta_roja,
     modelo: fila.modelo,
     creadoEn: fila.creado_en,
     anomalias: fila.anomalias_uso_telefono
@@ -78,7 +80,8 @@ export async function obtenerUltimoAnalisis(): Promise<AnalisisUsoTelefono | nul
   return data ? aModelo(data) : null;
 }
 
-export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<void> {
+/** Guarda el análisis con sus anomalías y devuelve su id. */
+export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<number> {
   const usuario = await obtenerUsuarioActual();
   const supabase = obtenerClienteServidor();
 
@@ -93,6 +96,7 @@ export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<
       resumen: nuevo.resumen,
       sugerencias: nuevo.sugerencias,
       sugerir_profesional: nuevo.sugerirProfesional,
+      alerta_roja: nuevo.alertaRoja,
       modelo: nuevo.modelo,
     })
     .select("analisis_uso_telefono_id")
@@ -100,7 +104,7 @@ export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<
 
   lanzarSiHayError("guardar el análisis de uso", error);
   const analisisId = (data as { analisis_uso_telefono_id: number }).analisis_uso_telefono_id;
-  if (nuevo.anomalias.length === 0) return;
+  if (nuevo.anomalias.length === 0) return analisisId;
 
   const { error: errorAnomalias } = await supabase.from("anomalias_uso_telefono").insert(
     nuevo.anomalias.map((anomalia) => ({
@@ -120,4 +124,5 @@ export async function guardarAnalisis(nuevo: NuevoAnalisisUsoTelefono): Promise<
       .eq("analisis_uso_telefono_id", analisisId);
   }
   lanzarSiHayError("guardar las anomalías del análisis", errorAnomalias);
+  return analisisId;
 }
