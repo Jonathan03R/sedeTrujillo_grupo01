@@ -3,11 +3,12 @@
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { esEmocionId, esIntensidad } from "@/models/emocion.model";
-import { UBICACION_DEMO, limpiarUbicacion } from "@/models/ubicacion.model";
+import { limpiarUbicacion } from "@/models/ubicacion.model";
 import type { ErrorRegistro } from "@/models/registro-emocional.model";
 import { ejecutarAnalisisInterno } from "./analisis-uso.controller";
 import { generarRecomendacionPersonalizada } from "./autocuidado.controller";
 import { guardarRegistro } from "@/repositories/registro-emocional.repository";
+import { marcarRecomendacionPendiente } from "@/repositories/recomendacion-autocuidado.repository";
 
 // Server Action: se puede invocar con un POST directo, por eso valida todo lo que recibe.
 // Si el registro es válido guarda, marca el check-in y envía a la persona a la app (/inicio).
@@ -26,17 +27,21 @@ export async function registrarEmocion(
     const registro = await guardarRegistro({ emocion, intensidad }, new Date().toISOString());
     if (!registro) return { error: "Esa emoción no está disponible. Elige otra." };
 
-    // En tiempo real: la IA personaliza el autocuidado con la emoción, su intensidad y los gustos.
-    // Nunca lanza; si falla, Inicio muestra la recomendación fija.
-    // La ubicación solo se usa para buscar lugares cercanos: no se guarda. Sin permiso, la de demostración.
-    await generarRecomendacionPersonalizada(registro, limpiarUbicacion(ubicacion) ?? UBICACION_DEMO);
+    // Deja visible el estado antes de redirigir. La generación lenta corre tras responder.
+    try { await marcarRecomendacionPendiente(registro.id, null); } catch (error) { console.error(error); }
+
+    // Ubicación solo se usa para buscar, nunca se guarda. Registro no espera a la IA.
+    const punto = limpiarUbicacion(ubicacion);
+    after(async () => {
+      await Promise.allSettled([
+        generarRecomendacionPersonalizada(registro, punto),
+        ejecutarAnalisisInterno(),
+      ]);
+    });
   } catch (error) {
     console.error(error); // el detalle queda en el servidor; a la persona se le muestra un mensaje simple
     return { error: "No pudimos guardar tu registro. Inténtalo de nuevo en un momento." };
   }
-
-  // Análisis interno en segundo plano (como el monitoreo del teléfono): no hace esperar a la persona.
-  after(ejecutarAnalisisInterno);
 
   redirect("/inicio");
 }

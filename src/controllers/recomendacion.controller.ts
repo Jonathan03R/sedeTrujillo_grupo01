@@ -58,7 +58,7 @@ export async function obtenerRecomendacionActual() {
     otros = (await Promise.all(ids.map(buscarEjercicio))).filter((e): e is Ejercicio => e !== null);
 
     personalizada = delRegistro;
-    mensaje = delRegistro?.mensaje ?? plan?.recomendacion ?? null;
+    mensaje = delRegistro?.estadoGeneracion === "lista" ? delRegistro.mensaje : plan?.recomendacion ?? null;
     apoyo = {
       titulo: delRegistro?.titulo ?? TITULO_POR_DEFECTO,
       detalle: mensaje ?? "Gracias por registrar cómo te sientes.",
@@ -78,6 +78,7 @@ export async function obtenerRecomendacionActual() {
     /** Un lugar cercano y un video que la IA buscó y eligió con sus herramientas; null si no hubo. */
     lugar: personalizada?.lugar ?? null,
     video: personalizada?.video ?? null,
+    recomendacionPendiente: personalizada?.estadoGeneracion === "pendiente",
     otros,
   };
 }

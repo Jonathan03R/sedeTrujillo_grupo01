@@ -22,10 +22,16 @@ export interface AlternativaAutocuidado {
   titulo: string;
   descripcion: string;
   icono: IconoAlternativa;
+  pasos?: { titulo: string; detalle: string; minutos: number }[];
+  videos?: Video[];
+  lugares?: Lugar[];
+  nota?: string;
+  ubicacionDemo?: boolean;
+  paraDespues?: boolean;
 }
 
 /** Actividades por las que la IA puede buscar un lugar cercano (OpenStreetMap). */
-export const ACTIVIDADES_LUGAR = ["basquet", "futbol", "voley", "parque", "gimnasio"] as const;
+export const ACTIVIDADES_LUGAR = ["basquet", "futbol", "voley", "parque", "gimnasio", "biblioteca", "museo"] as const;
 export type ActividadLugar = (typeof ACTIVIDADES_LUGAR)[number];
 
 export const ETIQUETA_ACTIVIDAD: Record<ActividadLugar, string> = {
@@ -34,6 +40,8 @@ export const ETIQUETA_ACTIVIDAD: Record<ActividadLugar, string> = {
   voley: "Cancha de vóley",
   parque: "Parque",
   gimnasio: "Gimnasio",
+  biblioteca: "Biblioteca",
+  museo: "Museo",
 };
 
 /** Un lugar real que encontró la herramienta de búsqueda. */
@@ -67,6 +75,8 @@ export interface VideoRecomendado extends Video {
 
 /** Lo que la IA preparó para el último registro emocional. */
 export interface RecomendacionPersonalizada {
+  estadoGeneracion?: "pendiente" | "buscando" | "lista" | "base";
+  creadoEn?: string;
   /** Título corto que escribió la IA para esta pantalla. null en recomendaciones anteriores. */
   titulo: string | null;
   /** Id del ejercicio del catálogo de la app; null si esa franja solo lleva recomendación, sin ejercicio. */
@@ -114,7 +124,7 @@ export function esIconoAlternativa(valor: unknown): valor is IconoAlternativa {
 
 /** Ideas generales para cuando la IA no está disponible: la pantalla siempre se ve completa. */
 export const ALTERNATIVAS_BASE: readonly AlternativaAutocuidado[] = [
-  { titulo: "Relajación rápida", descripcion: "Suelta hombros y mandíbula durante un minuto.", icono: "relajacion" },
+  { titulo: "Un lugar para ti", descripcion: "Descubre espacios para una pausa según tus gustos.", icono: "relajacion" },
   { titulo: "Música tranquila", descripcion: "Pon una lista suave y respira al ritmo.", icono: "musica" },
   { titulo: "Ideas para sentirte mejor", descripcion: "Toma agua, abre la ventana y estírate un momento.", icono: "ideas" },
   { titulo: "Escribe lo que sientes", descripcion: "Anota en dos líneas lo que pasa por tu mente.", icono: "escribir" },

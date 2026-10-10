@@ -15,6 +15,7 @@ import type { Notificacion } from "@/models/notificacion.model";
 import type { EmojiRespuesta, PreguntaSeguimiento as DatosPregunta } from "@/models/pregunta.model";
 import type { EstadoActual } from "@/models/progreso.model";
 import { EjercicioDestacado } from "./EjercicioDestacado";
+import { ActualizarRecomendacion } from "./ActualizarRecomendacion";
 
 interface InicioViewProps {
   estado: EstadoActual | null;
@@ -27,14 +28,16 @@ interface InicioViewProps {
   alertaRoja: { notificacion: Notificacion; emociones: readonly Emocion[] } | null;
   /** La pregunta que la IA eligió al cruzar el horario con el uso del teléfono (null si no hay). */
   preguntaSeguimiento: { pregunta: DatosPregunta; emojis: readonly EmojiRespuesta[] } | null;
+  recomendacionPendiente?: boolean;
 }
 
-export function InicioView({ estado, apoyo, recomendado, mensaje, alternativas, alertaRoja, preguntaSeguimiento }: InicioViewProps) {
+export function InicioView({ estado, apoyo, recomendado, mensaje, alternativas, alertaRoja, preguntaSeguimiento, recomendacionPendiente }: InicioViewProps) {
   return (
     <div className="space-y-5">
       {alertaRoja && <AlertaRoja {...alertaRoja} onResponder={responderAlerta} />}
       {estado && <TarjetaEstadoActual {...estado} />}
       {preguntaSeguimiento && <PreguntaSeguimiento {...preguntaSeguimiento} onResponder={responderPregunta} />}
+      {recomendacionPendiente && <ActualizarRecomendacion />}
 
       {recomendado ? (
         <EjercicioDestacado ejercicio={recomendado} mensaje={mensaje} />

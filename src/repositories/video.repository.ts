@@ -21,6 +21,7 @@ async function pedir<T>(ruta: string, parametros: Record<string, string>): Promi
     // La llave va en el encabezado para que no quede en la URL (ni en logs).
     headers: { "X-Goog-Api-Key": llave },
     signal: AbortSignal.timeout(ESPERA_MAXIMA_MS),
+    next: { revalidate: 900 }, // resultados públicos; ahorra cuota cuando se repite una búsqueda
   });
   if (!respuesta.ok) throw new Error(`YouTube respondió ${respuesta.status}`);
   return (await respuesta.json()) as T;
@@ -37,11 +38,11 @@ interface ResultadoBusqueda {
   items?: { id?: { videoId?: string }; snippet?: { title?: string; channelTitle?: string } }[];
 }
 interface ResultadoDetalles {
-  items?: { id?: string; contentDetails?: { duration?: string } }[];
+  items?: { id?: string; status?: { embeddable?: boolean; privacyStatus?: string }; contentDetails?: { duration?: string; regionRestriction?: { blocked?: string[]; allowed?: string[] } } }[];
 }
 
 /** Videos aptos para todo público, en español, que se pueden ver embebidos. Lanza si YouTube no responde. */
-export async function buscarVideos(consulta: string): Promise<Video[]> {
+export async function buscarVideos(consulta: string, opciones: { soloMusica?: boolean } = {}): Promise<Video[]> {
   const busqueda = await pedir<ResultadoBusqueda>("search", {
     part: "snippet",
     type: "video",
@@ -49,6 +50,8 @@ export async function buscarVideos(consulta: string): Promise<Video[]> {
     maxResults: String(CANTIDAD_MAXIMA * 2),
     safeSearch: "strict",
     videoEmbeddable: "true",
+    videoSyndicated: "true",
+    ...(opciones.soloMusica ? { videoCategoryId: "10" } : {}),
     relevanceLanguage: "es",
     regionCode: "PE",
   });
@@ -60,13 +63,19 @@ export async function buscarVideos(consulta: string): Promise<Video[]> {
   if (candidatos.length === 0) return [];
 
   const detalles = await pedir<ResultadoDetalles>("videos", {
-    part: "contentDetails",
+    part: "contentDetails,status",
     id: candidatos.map((c) => c.videoId).join(","),
   });
   const duraciones = new Map((detalles.items ?? []).map((d) => [d.id, minutosDeDuracion(d.contentDetails?.duration)]));
+  const reproducibles = new Set((detalles.items ?? []).filter((d) => {
+    const region = d.contentDetails?.regionRestriction;
+    return d.status?.embeddable === true && d.status.privacyStatus === "public" &&
+      !region?.blocked?.includes("PE") && (!region?.allowed || region.allowed.includes("PE"));
+  }).map((d) => d.id));
 
   return candidatos
+    .filter((c) => reproducibles.has(c.videoId))
     .map((c): Video => ({ ...c, duracionMinutos: duraciones.get(c.videoId) ?? null }))
-    .filter((v) => v.duracionMinutos === null || v.duracionMinutos <= DURACION_MAXIMA_MINUTOS)
+    .filter((v) => v.duracionMinutos !== null && v.duracionMinutos <= DURACION_MAXIMA_MINUTOS)
     .slice(0, CANTIDAD_MAXIMA);
 }
