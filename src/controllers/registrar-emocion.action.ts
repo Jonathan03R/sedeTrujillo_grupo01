@@ -7,6 +7,7 @@ import { limpiarUbicacion } from "@/models/ubicacion.model";
 import type { ErrorRegistro } from "@/models/registro-emocional.model";
 import { ejecutarAnalisisInterno } from "./analisis-uso.controller";
 import { generarRecomendacionPersonalizada } from "./autocuidado.controller";
+import { recalcularRacha } from "@/repositories/racha.repository";
 import { guardarRegistro } from "@/repositories/registro-emocional.repository";
 import { marcarRecomendacionPendiente } from "@/repositories/recomendacion-autocuidado.repository";
 
@@ -25,6 +26,7 @@ export async function registrarEmocion(
   try {
     // La emoción marcada debe existir y estar activa en el catálogo de la base (tabla emociones).
     const registro = await guardarRegistro({ emocion, intensidad }, new Date().toISOString());
+    if (registro) await recalcularRacha();
     if (!registro) return { error: "Esa emoción no está disponible. Elige otra." };
 
     // Deja visible el estado antes de redirigir. La generación lenta corre tras responder.

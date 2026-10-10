@@ -5,6 +5,8 @@ import { obtenerUsuarioActual } from "./usuario.repository";
 // Tabla videos_gustos (ver db/videos-gustos.sql). DATOS FICTICIOS de demostración.
 export interface VideoGusto {
   gusto: string;
+  /** ID real de YouTube (null = solo búsqueda). */
+  videoId: string | null;
   titulo: string;
   canal: string;
   consulta: string;
@@ -12,6 +14,7 @@ export interface VideoGusto {
 
 interface FilaVideoGusto {
   gusto: string;
+  video_id: string | null;
   titulo: string;
   canal: string;
   consulta: string;
@@ -36,11 +39,11 @@ export async function listarVideosSegunGustos(): Promise<readonly VideoGusto[]> 
 
   const { data, error } = await supabase
     .from("videos_gustos")
-    .select("gusto, titulo, canal, consulta")
+    .select("gusto, video_id, titulo, canal, consulta")
     .eq("activo", true)
     .in("gusto", nombres)
     .overrideTypes<FilaVideoGusto[]>();
   lanzarSiHayError("listar videos según gustos", error);
 
-  return data ?? [];
+  return (data ?? []).map((f) => ({ gusto: f.gusto, videoId: f.video_id, titulo: f.titulo, canal: f.canal, consulta: f.consulta }));
 }

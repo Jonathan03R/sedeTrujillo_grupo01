@@ -16,6 +16,7 @@ interface FilaLugar {
 }
 
 interface FilaVideo {
+  video_id: string | null;
   titulo: string;
   canal: string;
   consulta: string;
@@ -23,6 +24,8 @@ interface FilaVideo {
 
 /** Un video de demostración según la emoción de hoy. El enlace abre una búsqueda de YouTube. */
 export interface VideoEmocion {
+  /** ID real de YouTube (null = solo búsqueda). */
+  videoId: string | null;
   titulo: string;
   canal: string;
   consulta: string;
@@ -61,11 +64,11 @@ export async function listarVideosDeEmocion(emocion: EmocionId): Promise<VideoEm
   await connection();
   const { data, error } = await obtenerClienteServidor()
     .from("videos_emociones")
-    .select("titulo, canal, consulta")
+    .select("video_id, titulo, canal, consulta")
     .eq("emocion", emocion)
     .eq("activo", true)
     .order("video_emocion_id", { ascending: true })
     .overrideTypes<FilaVideo[]>();
   lanzarSiHayError("listar videos de la emoción", error);
-  return data ?? [];
+  return (data ?? []).map((f) => ({ videoId: f.video_id, titulo: f.titulo, canal: f.canal, consulta: f.consulta }));
 }
