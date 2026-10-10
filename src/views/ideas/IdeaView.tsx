@@ -34,7 +34,7 @@ function Destino({ icono, alternativa, lugar, video, videoGusto }: IdeaViewProps
     case "relajacion":
     case "caminar":
     case "naturaleza":
-      return lugar ? <TarjetaLugar lugar={lugar} /> : <SinResultado texto="Para buscar lugares cercanos necesitamos permiso de ubicación. Tu ubicación no se guarda." />;
+      return lugar ? <TarjetaLugar lugar={lugar} /> : <SinResultado texto="No encontramos una cancha cerca en este momento. Intenta de nuevo más tarde." />;
 
     case "musica":
       return video || videoGusto ? (
