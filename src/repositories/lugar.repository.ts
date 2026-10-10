@@ -29,7 +29,7 @@ interface ElementoOverpass {
 }
 
 /** Distancia en metros entre dos puntos (fórmula de haversine). */
-function distanciaMetros(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function distanciaMetros(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const aRadianes = (grados: number) => (grados * Math.PI) / 180;
   const dLat = aRadianes(lat2 - lat1);
   const dLon = aRadianes(lon2 - lon1);

@@ -1,61 +1,29 @@
-import type { LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
 import { esIconoAlternativa } from "@/models/autocuidado.model";
-import { UBICACION_DEMO } from "@/models/ubicacion.model";
-import { buscarLugaresCercanos } from "@/repositories/lugar.repository";
-import { buscarVideos, hayLlaveYoutube } from "@/repositories/video.repository";
+import { listarGustos } from "@/repositories/gusto.repository";
+import { listarLugaresPorGustos, listarVideosDeEmocion } from "@/repositories/catalogo-estatico.repository";
 import { obtenerRecomendacionActual } from "./recomendacion.controller";
 
-const CONSULTA_VIDEO_TRANQUILO = "música tranquila para relajarse";
-
-/** Una cancha cercana a la ubicación de demostración, para cuando la recomendación de hoy no trajo lugar. */
-async function buscarLugarDeRespaldo(): Promise<LugarRecomendado | null> {
-  try {
-    const [lugar] = await buscarLugaresCercanos("basquet", 3000, UBICACION_DEMO, false);
-    if (!lugar) return null;
-    return {
-      nombre: lugar.nombre,
-      actividad: lugar.actividad,
-      distanciaMetros: lugar.distanciaMetros,
-      latitud: lugar.latitud,
-      longitud: lugar.longitud,
-      motivo: "Está cerca de la Plaza de Armas: un buen lugar para tirar unos tiros con calma.",
-    };
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-/** Un video de música tranquila, para cuando la recomendación de hoy no trajo video. */
-async function buscarVideoDeRespaldo(): Promise<VideoRecomendado | null> {
-  if (!hayLlaveYoutube()) return null;
-  try {
-    const [video] = await buscarVideos(CONSULTA_VIDEO_TRANQUILO, { soloMusica: true });
-    if (!video) return null;
-    return { ...video, motivo: "Música tranquila para bajar el ritmo y acompañar el momento." };
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
 /**
- * La pantalla de una idea de «También puedes…». Usa lo que la IA preparó al registrar la emoción;
- * si no trajo lugar (deporte) o video (música), lo busca en este momento.
+ * La pantalla de una idea de «También puedes…».
+ * - Lugares: si la IA eligió uno al registrar, va primero; luego los lugares estáticos de Trujillo según tus gustos.
+ * - Videos: si la IA eligió uno, va primero; luego los videos estáticos de la emoción de hoy.
  * Devuelve null si el ícono no existe.
  */
 export async function obtenerIdea(icono: string) {
   if (!esIconoAlternativa(icono)) return null;
 
-  const { alternativas, lugar, video } = await obtenerRecomendacionActual();
-  const necesitaLugar = icono === "deporte" && !lugar;
-  const necesitaVideo = icono === "musica" && !video;
+  const [{ alternativas, lugar, video, estado }, gustos] = await Promise.all([obtenerRecomendacionActual(), listarGustos()]);
+
+  const lugares = icono === "deporte" || icono === "relajacion" || icono === "caminar" || icono === "naturaleza"
+    ? [...(lugar ? [lugar] : []), ...(await listarLugaresPorGustos(gustos.map((g) => g.texto)))]
+    : [];
+  const videosEmocion = icono === "musica" && estado ? await listarVideosDeEmocion(estado.emocion.id) : [];
 
   return {
     icono,
     alternativa: alternativas.find((a) => a.icono === icono) ?? null,
-    lugar: necesitaLugar ? await buscarLugarDeRespaldo() : lugar,
-    video: necesitaVideo ? await buscarVideoDeRespaldo() : video,
-    videoGusto: null,
+    lugares,
+    video: icono === "musica" ? video : null,
+    videosEmocion,
   };
 }
