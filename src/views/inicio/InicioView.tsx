@@ -15,6 +15,9 @@ import type { Notificacion } from "@/models/notificacion.model";
 import type { EmojiRespuesta, PreguntaSeguimiento as DatosPregunta } from "@/models/pregunta.model";
 import type { EstadoActual } from "@/models/progreso.model";
 import { EjercicioDestacado } from "./EjercicioDestacado";
+import { ActualizarRecomendacion } from "./ActualizarRecomendacion";
+import { TarjetaRacha } from "@/components/rachas/TarjetaRacha";
+import type { Racha } from "@/repositories/racha.repository";
 
 interface InicioViewProps {
   estado: EstadoActual | null;
@@ -25,16 +28,20 @@ interface InicioViewProps {
   mensaje: string | null;
   alternativas: readonly AlternativaAutocuidado[];
   alertaRoja: { notificacion: Notificacion; emociones: readonly Emocion[] } | null;
+  racha: Racha;
   /** La pregunta que la IA eligió al cruzar el horario con el uso del teléfono (null si no hay). */
   preguntaSeguimiento: { pregunta: DatosPregunta; emojis: readonly EmojiRespuesta[] } | null;
+  recomendacionPendiente?: boolean;
 }
 
-export function InicioView({ estado, apoyo, recomendado, mensaje, alternativas, alertaRoja, preguntaSeguimiento }: InicioViewProps) {
+export function InicioView({ estado, apoyo, recomendado, mensaje, alternativas, alertaRoja, preguntaSeguimiento, recomendacionPendiente, racha }: InicioViewProps) {
   return (
     <div className="space-y-5">
       {alertaRoja && <AlertaRoja {...alertaRoja} onResponder={responderAlerta} />}
+      <TarjetaRacha racha={racha} />
       {estado && <TarjetaEstadoActual {...estado} />}
       {preguntaSeguimiento && <PreguntaSeguimiento {...preguntaSeguimiento} onResponder={responderPregunta} />}
+      {recomendacionPendiente && <ActualizarRecomendacion />}
 
       {recomendado ? (
         <EjercicioDestacado ejercicio={recomendado} mensaje={mensaje} />

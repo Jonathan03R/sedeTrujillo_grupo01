@@ -1,17 +1,22 @@
 import { TarjetaLugar } from "@/components/ejercicios/TarjetaLugar";
 import { TarjetaVideo } from "@/components/ejercicios/TarjetaVideo";
-import { TarjetaVideoGusto } from "@/components/ejercicios/TarjetaVideoGusto";
+import { TarjetaVideoEmocion } from "@/components/ejercicios/TarjetaVideoEmocion";
 import { EncabezadoPantalla } from "@/components/ui/EncabezadoPantalla";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import type { AlternativaAutocuidado, IconoAlternativa, LugarRecomendado, VideoRecomendado } from "@/models/autocuidado.model";
-import type { VideoGusto } from "@/repositories/video-gusto.repository";
+import type { VideoEmocion } from "@/repositories/catalogo-estatico.repository";
+import { DiarioPersonal } from "./DiarioPersonal";
+import { PasosIdea } from "./PasosIdea";
 
 interface IdeaViewProps {
   icono: IconoAlternativa;
   alternativa: AlternativaAutocuidado | null;
-  lugar: LugarRecomendado | null;
+  /** Lugares: el de la IA (si lo hubo) y los estáticos de Trujillo según tus gustos. */
+  lugares: LugarRecomendado[];
+  /** Video que la IA eligió al registrar (si lo hubo). */
   video: VideoRecomendado | null;
-  videoGusto: VideoGusto | null;
+  /** Videos estáticos de la emoción de hoy. */
+  videosEmocion: VideoEmocion[];
 }
 
 function SinResultado({ texto }: { texto: string }) {
@@ -22,37 +27,49 @@ function SinResultado({ texto }: { texto: string }) {
   );
 }
 
-/**
- * Lo que se ve al tocar una tarjeta de «También puedes…». Cada ícono tiene su destino:
- *   deporte -> el lugar cercano (OpenStreetMap) · musica -> los videos (YouTube y los de tus gustos).
- * Los demás íconos todavía no tienen destino: agrega aquí un caso nuevo cuando lo tengan.
- */
-function Destino({ icono, lugar, video, videoGusto }: Omit<IdeaViewProps, "alternativa">) {
+/** Lo que se ve al tocar una tarjeta de «También puedes…». Cada ícono tiene su destino. */
+function Destino({ icono, alternativa, lugares, video, videosEmocion }: IdeaViewProps) {
   switch (icono) {
     case "deporte":
-      return lugar ? <TarjetaLugar lugar={lugar} /> : <SinResultado texto="Todavía no encontramos un lugar cerca de ti para esto." />;
-
-    case "musica":
-      return video || videoGusto ? (
-        <>
-          {video && <TarjetaVideo video={video} />}
-          {videoGusto && <TarjetaVideoGusto video={videoGusto} />}
-        </>
+    case "relajacion":
+    case "caminar":
+    case "naturaleza":
+      return lugares.length > 0 ? (
+        <div className="space-y-4">
+          {lugares.map((lugar) => (
+            <TarjetaLugar key={`${lugar.nombre}-${lugar.latitud}-${lugar.longitud}`} lugar={lugar} />
+          ))}
+        </div>
       ) : (
-        <SinResultado texto="Todavía no tenemos una playlist para ti." />
+        <SinResultado texto="No hay lugares de Trujillo para tus gustos todavía." />
       );
 
+    case "musica":
+      return video || videosEmocion.length > 0 ? (
+        <div className="space-y-4">
+          {video && <TarjetaVideo video={video} />}
+          {videosEmocion.map((v) => (
+            <TarjetaVideoEmocion key={v.titulo} video={v} />
+          ))}
+        </div>
+      ) : (
+        <SinResultado texto="Registra una emoción para ver videos según cómo te sientes." />
+      );
+
+    case "escribir":
+      return <DiarioPersonal />;
+
     default:
-      return <SinResultado texto="Pronto vas a encontrar más aquí." />;
+      return alternativa ? <PasosIdea alternativa={alternativa} /> : <SinResultado texto="Registra una emoción para preparar ideas para ti." />;
   }
 }
 
-export function IdeaView({ icono, alternativa, lugar, video, videoGusto }: IdeaViewProps) {
+export function IdeaView({ icono, alternativa, lugares, video, videosEmocion }: IdeaViewProps) {
   return (
     <div className="space-y-5">
       <EncabezadoPantalla titulo={alternativa?.titulo ?? "Idea para ti"} volverA="/inicio" />
       {alternativa && <p className="text-sm leading-relaxed text-slate-600">{alternativa.descripcion}</p>}
-      <Destino icono={icono} lugar={lugar} video={video} videoGusto={videoGusto} />
+      <Destino icono={icono} alternativa={alternativa} lugares={lugares} video={video} videosEmocion={videosEmocion} />
     </div>
   );
 }

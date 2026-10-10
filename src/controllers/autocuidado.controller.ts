@@ -18,7 +18,7 @@ import { contieneLenguajeClinico, textoValido } from "@/lib/ia/lenguaje";
 import { obtenerUltimoAnalisis } from "@/repositories/analisis-uso-telefono.repository";
 import { buscarEjercicio } from "@/repositories/ejercicio.repository";
 import { listarGustos } from "@/repositories/gusto.repository";
-import { guardarRecomendacion } from "@/repositories/recomendacion-autocuidado.repository";
+import { guardarRecomendacion, marcarRecomendacionBase } from "@/repositories/recomendacion-autocuidado.repository";
 import { buscarPlan } from "@/repositories/plan-autocuidado.repository";
 import { obtenerUsuarioActual } from "@/repositories/usuario.repository";
 import { crearHerramientas, type Hallazgos } from "./herramientas-autocuidado";
@@ -30,9 +30,10 @@ import { crearHerramientas, type Hallazgos } from "./herramientas-autocuidado";
 // Si falla o tarda demasiado, la pantalla usa la recomendación fija y la persona no nota nada.
 
 /** La persona está esperando en pantalla: si la IA no termina a tiempo, se sigue con la recomendación fija. */
-const ESPERA_MAXIMA_MS = 60_000;
+const ESPERA_MAXIMA_MS = 24_000;
 /** Vueltas de «la IA pide una herramienta → se ejecuta → la IA sigue». La última obliga a responder. */
-const MAXIMO_VUELTAS = 3;
+// Una vuelta para pedir búsquedas independientes; otra para cerrar el JSON.
+const MAXIMO_VUELTAS = 2;
 const CANTIDAD_ALTERNATIVAS = 4;
 const MINIMO_ALTERNATIVAS = 2;
 const MAXIMO_MENSAJE = 400;
@@ -49,7 +50,7 @@ Recibes la emoción de hoy y su intensidad (1 a 10), la hora local, lo que le gu
 2. titulo: 3 a 6 palabras que resuman el momento de hoy para esta persona (por ejemplo, «Vamos a bajar el ritmo»), sin nombrar condiciones.
 2b. mensaje: 1 o 2 frases cálidas que retomen la recomendación base con tus propias palabras, sin cambiar su idea ni su tono. Si hay ejercicio de hoy, preséntalo; si hoy no hay ejercicio, no menciones ni propongas ningún ejercicio y deja que el mensaje sea solo una recomendación. Puedes mencionar algo que le gusta solo si aporta de verdad.
 3. alternativas: exactamente ${CANTIDAD_ALTERNATIVAS} ideas distintas y breves de autocuidado. Si la persona tiene gustos, al menos 2 deben apoyarse en ellos (por ejemplo, si le gusta el básquet: tirar unos tiros libres con calma, o ver un partido). Cada idea tiene un titulo corto (hasta 5 palabras), una descripcion de 1 frase con algo concreto que pueda hacer ahora, y un icono de la lista.
-4. lugar y video (opcionales): tienes herramientas para buscar un lugar real cercano y un video. Decide tú si aportan algo hoy; no las uses por usar.
+4. música y lugares: busca un video de música tranquila que acompañe este momento (consulta corta y personalizada según gustos). Busca también un parque o actividad suave si la persona busca descanso/aire libre, o un lugar de la actividad que le gusta. Las herramientas corren en paralelo. Evita lugares de noche y deporte intenso con intensidad alta.
    - Lugar (buscar_lugares_cercanos): solo si a la persona le gusta una actividad que se practica en un lugar (por ejemplo, básquet o fútbol, o caminar en un parque). Si es de día y la intensidad no es muy alta, recomiéndalo para hacerlo ahora. Con intensidad alta, solo si es un plan suave (un parque para caminar) o para más tarde, dicho así en el motivo. De noche (a partir de las 20:00) no recomiendes lugares.
    - Video (buscar_videos, si está disponible): algo que acompañe el momento. Con una emoción de malestar o intensidad alta, busca algo tranquilo (música suave, paisajes, respiración guiada, estiramientos suaves); con ánimo agradable puede ser algo que le guste (una jugada, un partido, música). Escribe la consulta en español, sencilla y sin términos clínicos.
    - Llama a las herramientas que necesites en un mismo turno. Cuando recibas los resultados, responde. Elige lugar_id y video_id únicamente de los resultados recibidos; si nada sirve o no usaste la herramienta, deja el campo en "". Cada elección lleva un motivo (1 frase) que explique por qué es bueno para esta persona hoy.
@@ -160,7 +161,17 @@ function momentoDelDia(hora: number): string {
  * `ubicacion` es la de la persona (con su permiso) o la de demostración; solo se usa para buscar lugares y no se guarda.
  * Nunca lanza: si algo falla queda en el log del servidor y la pantalla usa la recomendación fija.
  */
-export async function generarRecomendacionPersonalizada(registro: RegistroEmocional, ubicacion: Ubicacion): Promise<void> {
+export async function generarRecomendacionPersonalizada(registro: RegistroEmocional, ubicacion: Ubicacion | null): Promise<void> {
+  let guardada = false;
+  const inicio = Date.now();
+  console.info("[Pulso IA] Preparación iniciada", {
+    registroId: registro.id,
+    emocion: registro.emocion,
+    intensidad: registro.intensidad,
+    modelo: MODELO_IA,
+    youtubeDisponible: Boolean(process.env.YOUTUBE_API_KEY),
+    ubicacionDisponible: Boolean(ubicacion),
+  });
   try {
     const [plan, gustos, usuario, analisis] = await Promise.all([
       buscarPlan(registro.emocion, registro.intensidad),
@@ -169,7 +180,7 @@ export async function generarRecomendacionPersonalizada(registro: RegistroEmocio
       obtenerUltimoAnalisis(),
     ]);
     if (!plan) {
-      console.error(`IA · no hay franja en recomendaciones_ejercicios para ${registro.emocion} con intensidad ${registro.intensidad}`);
+      console.error("[Pulso IA] No se generó recomendación: no existe plan para emoción e intensidad", { registroId: registro.id });
       return;
     }
     const ejercicio = plan.ejercicioId ? await buscarEjercicio(plan.ejercicioId) : null;
@@ -212,31 +223,35 @@ export async function generarRecomendacionPersonalizada(registro: RegistroEmocio
           // Esfuerzo bajo: la persona espera en pantalla y la tarea es corta.
           output_config: { effort: "low", format: { type: "json_schema", schema: esquemaRespuesta() } },
           system: INSTRUCCIONES,
-          tools: definiciones,
-          // En la última vuelta ya no se piden más herramientas: toca responder con lo que hay.
-          tool_choice: vuelta === MAXIMO_VUELTAS ? { type: "none" } : { type: "auto" },
+          ...(definiciones.length > 0 ? {
+            tools: definiciones,
+            // En la última vuelta ya no se piden más herramientas: toca responder con lo que hay.
+            tool_choice: vuelta === MAXIMO_VUELTAS ? { type: "none" as const } : { type: "auto" as const },
+          } : {}),
           messages: mensajes,
         },
         { timeout: Math.max(limite - Date.now(), 1_000), maxRetries: 0 },
       );
 
       if (respuesta.stop_reason === "refusal" || respuesta.stop_reason === "max_tokens") {
-        console.error(`IA · recomendación de autocuidado sin terminar: ${respuesta.stop_reason}`);
+        console.warn("[Pulso IA] Respuesta incompleta", { registroId: registro.id, vuelta, motivo: respuesta.stop_reason, modelo: respuesta.model });
         return;
       }
 
       if (respuesta.stop_reason === "tool_use") {
         // La respuesta se devuelve tal cual (con sus bloques de razonamiento) y se agregan los resultados juntos.
         const usos = respuesta.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+        console.info("[Pulso IA] IA solicitó herramientas", { registroId: registro.id, vuelta, herramientas: usos.map((uso) => uso.name) });
         const resultados = await Promise.all(usos.map(ejecutar));
         mensajes.push({ role: "assistant", content: respuesta.content }, { role: "user", content: resultados });
         continue;
       }
 
       const bloque = respuesta.content.find((b) => b.type === "text");
-      const recomendacion = bloque ? validarRespuesta(JSON.parse(bloque.text), hallazgos) : null;
+      const bruto: unknown = bloque ? JSON.parse(bloque.text) : null;
+      const recomendacion = validarRespuesta(bruto, hallazgos);
       if (!recomendacion) {
-        console.error("IA · la recomendación de autocuidado no pasó la validación", bloque?.type === "text" ? bloque.text : "");
+        console.error("[Pulso IA] Respuesta descartada por validación", { registroId: registro.id, vuelta, modelo: respuesta.model });
         return;
       }
 
@@ -246,9 +261,43 @@ export async function generarRecomendacionPersonalizada(registro: RegistroEmocio
         registroEmocionalId: registro.id,
         modelo: respuesta.model,
       });
+      guardada = true;
+      const videoId = typeof bruto === "object" && bruto !== null ? (bruto as Record<string, unknown>).video_id : null;
+      const videoDeclarado = typeof videoId === "string" && videoId.length > 0;
+      const motivoSinVideo = recomendacion.video
+        ? "video seleccionado"
+        : !hallazgos.metricas.youtubeDisponible
+          ? "YOUTUBE_API_KEY no configurada"
+          : hallazgos.metricas.busquedasYoutube === 0
+            ? "la IA no solicitó búsqueda de YouTube"
+            : hallazgos.metricas.erroresYoutube > 0
+              ? "falló la búsqueda de YouTube"
+              : hallazgos.metricas.videosEncontrados === 0
+                ? "YouTube no devolvió videos reproducibles"
+                : videoDeclarado
+                  ? "la IA eligió un video no válido o sin motivo aceptable"
+                  : "la IA encontró videos, pero decidió no recomendar uno";
+      console.info("[Pulso IA] Recomendación generada y guardada", {
+        registroId: registro.id,
+        modelo: respuesta.model,
+        alternativas: recomendacion.alternativas.length,
+        video: Boolean(recomendacion.video),
+        motivoSinVideo: recomendacion.video ? undefined : motivoSinVideo,
+        lugar: Boolean(recomendacion.lugar),
+        metricas: hallazgos.metricas,
+        duracionMs: Date.now() - inicio,
+      });
       return;
     }
   } catch (error) {
-    console.error(error);
+    console.error("[Pulso IA] Falló la generación de recomendación", {
+      registroId: registro.id,
+      error: error instanceof Error ? error.message : "Error desconocido",
+      duracionMs: Date.now() - inicio,
+    });
+  } finally {
+    if (!guardada) {
+      try { await marcarRecomendacionBase(registro.id); } catch (error) { console.error(error); }
+    }
   }
 }

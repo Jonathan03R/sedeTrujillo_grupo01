@@ -15,6 +15,8 @@ const FILTROS: Record<ActividadLugar, string> = {
   voley: '["sport"="volleyball"]',
   parque: '["leisure"~"^(park|garden)$"]["name"]',
   gimnasio: '["leisure"="fitness_centre"]["name"]',
+  biblioteca: '["amenity"="library"]["name"]',
+  museo: '["tourism"="museum"]["name"]',
 };
 
 interface ElementoOverpass {
@@ -27,7 +29,7 @@ interface ElementoOverpass {
 }
 
 /** Distancia en metros entre dos puntos (fórmula de haversine). */
-function distanciaMetros(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function distanciaMetros(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const aRadianes = (grados: number) => (grados * Math.PI) / 180;
   const dLat = aRadianes(lat2 - lat1);
   const dLon = aRadianes(lon2 - lon1);
@@ -103,13 +105,15 @@ const LUGARES_RESPALDO: Record<ActividadLugar, readonly Omit<Lugar, "distanciaMe
   futbol: [],
   voley: [],
   gimnasio: [],
+  biblioteca: [],
+  museo: [],
 };
 
 /**
  * Los lugares más cercanos para esa actividad, de menor a mayor distancia, desde la ubicación de la persona.
  * Usa OpenStreetMap; si no responde o no hay nada, los lugares de respaldo de Trujillo dentro del radio. Nunca lanza.
  */
-export async function buscarLugaresCercanos(actividad: ActividadLugar, radioMetros: number, ubicacion: Ubicacion): Promise<Lugar[]> {
+export async function buscarLugaresCercanos(actividad: ActividadLugar, radioMetros: number, ubicacion: Ubicacion, permitirRespaldo = true): Promise<Lugar[]> {
   try {
     const lugares = await buscarEnOverpass(actividad, radioMetros, ubicacion);
     if (lugares.length > 0) return lugares;
@@ -117,7 +121,7 @@ export async function buscarLugaresCercanos(actividad: ActividadLugar, radioMetr
     console.error(error); // el detalle queda en el servidor; se sigue con los lugares de respaldo
   }
 
-  return LUGARES_RESPALDO[actividad]
+  return (permitirRespaldo ? LUGARES_RESPALDO[actividad] : [])
     .map((lugar): Lugar => ({
       ...lugar,
       distanciaMetros: Math.round(distanciaMetros(ubicacion.latitud, ubicacion.longitud, lugar.latitud, lugar.longitud)),

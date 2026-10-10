@@ -13,7 +13,7 @@ import type { Ubicacion } from "@/models/ubicacion.model";
 import { BotonVoz } from "./BotonVoz";
 import { PREGUNTA_REGISTRO } from "@/models/registro-emocional.model";
 
-const ESPERA_UBICACION_MS = 8_000;
+const ESPERA_UBICACION_MS = 300;
 
 /** La ubicación del navegador, con permiso de la persona. null si la niega, no hay o tarda demasiado. */
 function pedirUbicacion(): Promise<Ubicacion | null> {
@@ -23,9 +23,17 @@ function pedirUbicacion(): Promise<Ubicacion | null> {
       ({ coords }) => resolver({ latitud: coords.latitude, longitud: coords.longitude }),
       () => resolver(null),
       // Una posición reciente (hasta 10 min) alcanza: así no pide el GPS en cada registro.
-      { timeout: ESPERA_UBICACION_MS, maximumAge: 600_000 },
+        { timeout: ESPERA_UBICACION_MS, maximumAge: 600_000 },
     );
   });
+}
+
+/** Nunca deja que el permiso/GPS retrase el guardado: usa ubicación reciente o continúa sin ella. */
+async function pedirUbicacionSinRetrasar(): Promise<Ubicacion | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<null>((resolver) => { timer = setTimeout(() => resolver(null), ESPERA_UBICACION_MS); });
+  try { return await Promise.race([pedirUbicacion(), limite]); }
+  finally { if (timer) clearTimeout(timer); }
 }
 
 export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[] }) {
@@ -38,7 +46,7 @@ export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[
   function registrar(emocionElegida: EmocionId | null, intensidadElegida: Intensidad) {
     iniciarTransicion(async () => {
       // El navegador le pide permiso a la persona; si dice que no (o no hay), se sigue sin ubicación.
-      const respuesta = await registrarEmocion(emocionElegida, intensidadElegida, await pedirUbicacion());
+      const respuesta = await registrarEmocion(emocionElegida, intensidadElegida, await pedirUbicacionSinRetrasar());
       setError(respuesta.error);
     });
   }
@@ -89,7 +97,7 @@ export function FormularioRegistro({ emociones }: { emociones: readonly Emocion[
         disabled={!emocion || pendiente}
         className="relative shadow-lg shadow-blue-500/30"
       >
-        {pendiente ? "Preparando tu momento de calma…" : "Registrar"}
+        {pendiente ? "Guardando…" : "Registrar"}
         {!pendiente && <ArrowRight className="absolute right-6 size-6" aria-hidden="true" />}
       </Boton>
     </div>

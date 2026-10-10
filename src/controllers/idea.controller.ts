@@ -1,26 +1,29 @@
 import { esIconoAlternativa } from "@/models/autocuidado.model";
-import { listarVideosSegunGustos } from "@/repositories/video-gusto.repository";
+import { listarGustos } from "@/repositories/gusto.repository";
+import { listarLugaresPorGustos, listarVideosDeEmocion } from "@/repositories/catalogo-estatico.repository";
 import { obtenerRecomendacionActual } from "./recomendacion.controller";
 
 /**
- * La pantalla de una idea de «También puedes…». El destino depende del ícono de la tarjeta:
- * deporte -> lugar cercano; musica -> videos; las demás aún no tienen destino (ver IdeaView).
+ * La pantalla de una idea de «También puedes…».
+ * - Lugares: si la IA eligió uno al registrar, va primero; luego los lugares estáticos de Trujillo según tus gustos.
+ * - Videos: si la IA eligió uno, va primero; luego los videos estáticos de la emoción de hoy.
  * Devuelve null si el ícono no existe.
  */
 export async function obtenerIdea(icono: string) {
   if (!esIconoAlternativa(icono)) return null;
 
-  const [{ alternativas, lugar, video }, videosGustos] = await Promise.all([
-    obtenerRecomendacionActual(),
-    listarVideosSegunGustos(),
-  ]);
+  const [{ alternativas, lugar, video, estado }, gustos] = await Promise.all([obtenerRecomendacionActual(), listarGustos()]);
+
+  const lugares = icono === "deporte" || icono === "relajacion" || icono === "caminar" || icono === "naturaleza"
+    ? [...(lugar ? [lugar] : []), ...(await listarLugaresPorGustos(gustos.map((g) => g.texto)))]
+    : [];
+  const videosEmocion = icono === "musica" && estado ? await listarVideosDeEmocion(estado.emocion.id) : [];
 
   return {
     icono,
     alternativa: alternativas.find((a) => a.icono === icono) ?? null,
-    lugar,
-    video,
-    // Un video de demostración según un gusto (el primero de la lista).
-    videoGusto: videosGustos[0] ?? null,
+    lugares,
+    video: icono === "musica" ? video : null,
+    videosEmocion,
   };
 }

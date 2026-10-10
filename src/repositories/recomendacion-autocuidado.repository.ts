@@ -19,6 +19,8 @@ interface FilaRecomendacion {
   alternativas: unknown;
   lugar: unknown;
   video: unknown;
+  modelo: string | null;
+  creado_en: string;
 }
 
 /** El jsonb de la base puede traer cualquier cosa: se queda solo con lo que tiene la forma esperada. */
@@ -69,7 +71,7 @@ export async function obtenerRecomendacionDelRegistro(registroId: number): Promi
   await connection(); // se genera al registrar: leerla en cada petición
   const { data, error } = await obtenerClienteServidor()
     .from("recomendaciones_autocuidado")
-    .select("titulo, recomendacion, ejercicio, alternativas, lugar, video")
+    .select("titulo, recomendacion, ejercicio, alternativas, lugar, video, modelo, creado_en")
     .eq("registro_emocional_id", registroId)
     .eq("activo", true)
     .order("creado_en", { ascending: false })
@@ -85,12 +87,32 @@ export async function obtenerRecomendacionDelRegistro(registroId: number): Promi
     alternativas: aAlternativas(data.alternativas),
     lugar: aLugar(data.lugar),
     video: aVideo(data.video),
+    estadoGeneracion: data.modelo === "pulso:pendiente" ? "pendiente" : data.modelo === "pulso:base" ? "base" : "lista",
+    creadoEn: data.creado_en,
   };
 }
 
-export async function guardarRecomendacion(nueva: NuevaRecomendacionPersonalizada): Promise<void> {
+/** Crea una fila de estado antes de lanzar el trabajo lento en segundo plano. */
+export async function marcarRecomendacionPendiente(registroEmocionalId: number, ejercicioId: string | null): Promise<void> {
   const { error } = await obtenerClienteServidor().from("recomendaciones_autocuidado").insert({
-    registro_emocional_id: nueva.registroEmocionalId,
+    registro_emocional_id: registroEmocionalId,
+    titulo: "Preparando ideas para ti",
+    recomendacion: "Tu registro ya está guardado. Estamos preparando música, ideas y lugares según este momento.",
+    ejercicio: ejercicioId,
+    alternativas: [], lugar: null, video: null, modelo: "pulso:pendiente",
+  });
+  lanzarSiHayError("marcar recomendación pendiente", error);
+}
+
+export async function marcarRecomendacionBase(registroEmocionalId: number): Promise<void> {
+  const { error } = await obtenerClienteServidor().from("recomendaciones_autocuidado")
+    .update({ modelo: "pulso:base", titulo: null, recomendacion: "", alternativas: [], lugar: null, video: null })
+    .eq("registro_emocional_id", registroEmocionalId).eq("modelo", "pulso:pendiente");
+  lanzarSiHayError("cerrar recomendación pendiente", error);
+}
+
+export async function guardarRecomendacion(nueva: NuevaRecomendacionPersonalizada): Promise<void> {
+  const fila = {
     titulo: nueva.titulo,
     recomendacion: nueva.mensaje,
     ejercicio: nueva.ejercicioId,
@@ -98,6 +120,12 @@ export async function guardarRecomendacion(nueva: NuevaRecomendacionPersonalizad
     lugar: nueva.lugar,
     video: nueva.video,
     modelo: nueva.modelo,
-  });
+  };
+  const cliente = obtenerClienteServidor();
+  const { data, error: actualizarError } = await cliente.from("recomendaciones_autocuidado")
+    .update(fila).eq("registro_emocional_id", nueva.registroEmocionalId).eq("modelo", "pulso:pendiente").select("registro_emocional_id");
+  if (actualizarError) lanzarSiHayError("actualizar recomendación de autocuidado", actualizarError);
+  if (data?.length) return;
+  const { error } = await cliente.from("recomendaciones_autocuidado").insert({ registro_emocional_id: nueva.registroEmocionalId, ...fila });
   lanzarSiHayError("guardar la recomendación de autocuidado", error);
 }

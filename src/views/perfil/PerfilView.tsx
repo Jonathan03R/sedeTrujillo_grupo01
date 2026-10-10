@@ -9,6 +9,7 @@ import type { DatosRecopilados } from "@/models/perfil.model";
 import { DatosRecopiladosTarjeta } from "./DatosRecopiladosTarjeta";
 import { MiHorario } from "./MiHorario";
 import { MisGustos } from "./MisGustos";
+import { BotonCerrarSesion } from "./BotonCerrarSesion";
 
 interface PerfilViewProps {
   usuario: Usuario;
@@ -51,6 +52,8 @@ export function PerfilView({ usuario, iniciales, gustos, horario, recopilado }: 
           </div>
         </dl>
       </Tarjeta>
+
+      <BotonCerrarSesion />
 
       <AvisoApoyo />
     </div>
